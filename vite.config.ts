@@ -40,4 +40,9 @@ function waProxyPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), waProxyPlugin()],
+  server: {
+    host: '0.0.0.0',
+    port: 5000,
+    allowedHosts: true,
+  },
 })
