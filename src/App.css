@@ -1,0 +1,98 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #f4f6fb;
+}
+
+.card {
+  width: 100%;
+  max-width: 460px;
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.subtitle {
+  margin: 6px 0 16px;
+  color: #5e6470;
+  font-size: 0.95rem;
+}
+
+.form {
+  display: grid;
+  gap: 14px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #2f3340;
+}
+
+input {
+  border: 1px solid #d9dce5;
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 1rem;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #1f6fff;
+  color: white;
+}
+
+button.secondary {
+  background: #eef2ff;
+  color: #2a3558;
+}
+
+.status {
+  margin-top: 14px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+}
+
+.status.idle,
+.status.loading {
+  background: #eef2f7;
+  color: #42506a;
+}
+
+.status.success {
+  background: #eaf9ef;
+  color: #1b6a35;
+}
+
+.status.warning {
+  background: #fff7e6;
+  color: #7a5a00;
+}
+
+.status.error {
+  background: #ffecee;
+  color: #8a1f2d;
+}
