@@ -58,12 +58,20 @@ function App() {
     try {
       const base = normalizeUrl(serverUrl)
       new URL(base)
-      const response = await fetch(`${base}/api/status`, {
-        method: 'GET',
-        headers: {
-          'X-API-Key': apiKey.trim(),
-        },
-      })
+      let response: Response
+      try {
+        response = await fetch(`${base}/api/status`, {
+          method: 'GET',
+          headers: {
+            'X-API-Key': apiKey.trim(),
+          },
+        })
+      } catch (directErr) {
+        // Fallback for browser/webview CORS restrictions during local development
+        response = await fetch(
+          `/__wa_proxy/status?base=${encodeURIComponent(base)}&apiKey=${encodeURIComponent(apiKey.trim())}`,
+        )
+      }
 
       if (response.status === 401 || response.status === 403) {
         setResult({ type: 'error', message: 'Authentication failed. Check API key.' })
