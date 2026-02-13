@@ -34,7 +34,13 @@ function App() {
     setResult({ type: 'success', message: 'Settings saved locally on this device.' })
   }
 
-  const normalizeUrl = (url: string) => url.trim().replace(/\/$/, '')
+  const normalizeUrl = (url: string) => {
+    const trimmed = url.trim()
+    const withProtocol = /^https?:\/\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`
+    return withProtocol.replace(/\/$/, '')
+  }
 
   const testConnection = async (e: FormEvent) => {
     e.preventDefault()
@@ -48,6 +54,7 @@ function App() {
 
     try {
       const base = normalizeUrl(serverUrl)
+      new URL(base)
       const response = await fetch(`${base}/api/status`, {
         method: 'GET',
         headers: {
@@ -79,10 +86,12 @@ function App() {
         })
       }
     } catch (error) {
-      setResult({
-        type: 'error',
-        message: 'Could not reach server. Check URL, network, and CORS settings.',
-      })
+      const message =
+        error instanceof Error && /Invalid URL/i.test(error.message)
+          ? 'URL format looks invalid. Paste full server URL (including .replit.dev).'
+          : 'Could not reach server. Check URL, network, and CORS settings.'
+
+      setResult({ type: 'error', message })
     }
   }
 
@@ -96,7 +105,10 @@ function App() {
           <label>
             WhatsApp Server URL
             <input
-              type="url"
+              type="text"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
               placeholder="https://your-server.replit.dev"
               value={serverUrl}
               onChange={(e) => setServerUrl(e.target.value)}
