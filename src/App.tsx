@@ -9,6 +9,9 @@ type TestResult =
   | { type: 'warning'; message: string }
   | { type: 'error'; message: string }
 
+const FULL_URL_HINT =
+  'https://a8e0e9ea-3eae-4e21-8bed-17e7e221d6b2-00-pft6lj2s145p.picard.replit.dev'
+
 const STORAGE_KEY = 'imagine-agent-client.settings.v1'
 
 function App() {
@@ -86,20 +89,27 @@ function App() {
         })
       }
     } catch (error) {
-      const message =
-        error instanceof Error && /Invalid URL/i.test(error.message)
-          ? 'URL format looks invalid. Paste full server URL (including .replit.dev).'
-          : 'Could not reach server. Check URL, network, and CORS settings.'
+      let message = 'Could not reach server. Check URL and network.'
+
+      if (error instanceof Error && /Invalid URL/i.test(error.message)) {
+        message = 'URL format looks invalid. Paste full server URL (including .replit.dev).'
+      } else if (error instanceof TypeError) {
+        message =
+          'Request blocked by browser (likely CORS) or network. Server may still be up. Try opening the URL directly in browser.'
+      }
 
       setResult({ type: 'error', message })
     }
   }
+
+  const normalizedPreview = serverUrl.trim() ? normalizeUrl(serverUrl) : ''
 
   return (
     <main className="app-shell">
       <section className="card">
         <h1>ImagineAgent Client</h1>
         <p className="subtitle">Settings · Phase 1</p>
+        <p className="example-url">Example: {FULL_URL_HINT}</p>
 
         <form onSubmit={testConnection} className="form">
           <label>
@@ -114,6 +124,12 @@ function App() {
               onChange={(e) => setServerUrl(e.target.value)}
               required
             />
+            <small className="hint">Use full URL (host must end with <code>.replit.dev</code>).</small>
+            {!!normalizedPreview && (
+              <small className="preview" title={normalizedPreview}>
+                Using: {normalizedPreview}
+              </small>
+            )}
           </label>
 
           <label>

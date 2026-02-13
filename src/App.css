@@ -22,9 +22,17 @@ h1 {
 }
 
 .subtitle {
-  margin: 6px 0 16px;
+  margin: 6px 0 6px;
   color: #5e6470;
   font-size: 0.95rem;
+}
+
+.example-url {
+  margin: 0 0 16px;
+  color: #6b7280;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  word-break: break-all;
 }
 
 .form {
@@ -38,6 +46,23 @@ label {
   font-weight: 600;
   font-size: 0.92rem;
   color: #2f3340;
+}
+
+.hint {
+  font-weight: 500;
+  color: #6b7280;
+  font-size: 0.78rem;
+}
+
+.preview {
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.78rem;
+  background: #eef2f7;
+  border-radius: 8px;
+  padding: 7px 9px;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
 input {
