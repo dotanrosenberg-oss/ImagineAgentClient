@@ -9,7 +9,7 @@
 
 .card {
   width: 100%;
-  max-width: 460px;
+  max-width: 560px;
   background: white;
   border-radius: 16px;
   padding: 20px;
@@ -65,7 +65,8 @@ label {
   white-space: nowrap;
 }
 
-input {
+input,
+select {
   border: 1px solid #d9dce5;
   border-radius: 10px;
   padding: 11px 12px;
@@ -92,6 +93,54 @@ button {
 button.secondary {
   background: #eef2ff;
   color: #2a3558;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.messages-panel {
+  margin-top: 16px;
+  border-top: 1px solid #edf0f6;
+  padding-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.messages-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.message-list {
+  display: grid;
+  gap: 10px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.message-card {
+  border: 1px solid #e3e8f1;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.message-head {
+  display: grid;
+  gap: 2px;
+}
+
+.muted {
+  color: #6b7280;
+}
+
+.small {
+  font-size: 0.8rem;
 }
 
 .status {
