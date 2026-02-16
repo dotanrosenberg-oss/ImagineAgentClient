@@ -34,7 +34,15 @@ async function apiCall<T>(
   const base = normalizeUrl(serverUrl)
   let response: Response
 
+  const proxyUrl = `/__wa_proxy/${endpoint}?base=${encodeURIComponent(base)}&apiKey=${encodeURIComponent(apiKey.trim())}`
+  const proxyOpts: RequestInit = {
+    method,
+    ...(body ? { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } } : {}),
+  }
+
   try {
+    response = await fetch(proxyUrl, proxyOpts)
+  } catch {
     const opts: RequestInit = {
       method,
       headers: {
@@ -44,13 +52,6 @@ async function apiCall<T>(
       ...(body ? { body: JSON.stringify(body) } : {}),
     }
     response = await fetch(`${base}/${endpoint}`, opts)
-  } catch {
-    const proxyUrl = `/__wa_proxy/${endpoint}?base=${encodeURIComponent(base)}&apiKey=${encodeURIComponent(apiKey.trim())}`
-    const opts: RequestInit = {
-      method,
-      ...(body ? { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } } : {}),
-    }
-    response = await fetch(proxyUrl, opts)
   }
 
   if (response.status === 401 || response.status === 403) {

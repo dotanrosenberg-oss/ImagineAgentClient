@@ -61,14 +61,14 @@ export default function SettingsScreen({ onConnected }: Props) {
       new URL(base)
       let response: Response
       try {
+        response = await fetch(
+          `/__wa_proxy/api/status?base=${encodeURIComponent(base)}&apiKey=${encodeURIComponent(apiKey.trim())}`,
+        )
+      } catch {
         response = await fetch(`${base}/api/status`, {
           method: 'GET',
           headers: { 'X-API-Key': apiKey.trim() },
         })
-      } catch {
-        response = await fetch(
-          `/__wa_proxy/api/status?base=${encodeURIComponent(base)}&apiKey=${encodeURIComponent(apiKey.trim())}`,
-        )
       }
 
       if (response.status === 401 || response.status === 403) {
