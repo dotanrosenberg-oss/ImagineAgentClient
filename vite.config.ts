@@ -2,8 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 function getServerConfig() {
-  let serverUrl = process.env.WA_SERVER_URL || ''
-  let apiKey = process.env.WA_API_KEY || ''
+  let serverUrl = (process.env.WA_SERVER_URL || '').trim()
+  let apiKey = (process.env.WA_API_KEY || '').trim()
 
   if (apiKey.startsWith('http') && !serverUrl.startsWith('http')) {
     const tmp = serverUrl
