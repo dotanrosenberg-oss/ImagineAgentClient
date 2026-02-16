@@ -34,10 +34,18 @@ async function apiCall<T>(
   const base = normalizeUrl(serverUrl)
   let response: Response
 
-  const proxyUrl = `/__wa_proxy/${endpoint}?base=${encodeURIComponent(base)}&apiKey=${encodeURIComponent(apiKey.trim())}`
+  const proxyUrl = `/__wa_proxy/${endpoint}`
+  const proxyHeaders: Record<string, string> = {
+    'X-Proxy-Base': base,
+    'X-Proxy-ApiKey': apiKey.trim(),
+  }
+  if (body) {
+    proxyHeaders['Content-Type'] = 'application/json'
+  }
   const proxyOpts: RequestInit = {
     method,
-    ...(body ? { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } } : {}),
+    headers: proxyHeaders,
+    ...(body ? { body: JSON.stringify(body) } : {}),
   }
 
   try {

@@ -12,26 +12,18 @@ function waProxyPlugin(): Plugin {
           return
         }
 
-        const parsed = new URL(req.url, 'http://localhost')
-        const base = parsed.searchParams.get('base')
-        const apiKey = parsed.searchParams.get('apiKey')
-        const endpoint = req.url.replace('/__wa_proxy/', '').split('?')[0]
+        const base = req.headers['x-proxy-base'] as string | undefined
+        const apiKey = req.headers['x-proxy-apikey'] as string | undefined
+        const endpoint = req.url.replace('/__wa_proxy/', '')
 
         if (!base || !apiKey) {
           res.statusCode = 400
           res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ error: 'base and apiKey are required' }))
+          res.end(JSON.stringify({ error: 'x-proxy-base and x-proxy-apikey headers are required' }))
           return
         }
 
-        const forwardParams = new URLSearchParams()
-        parsed.searchParams.forEach((value, key) => {
-          if (key !== 'base' && key !== 'apiKey') {
-            forwardParams.append(key, value)
-          }
-        })
-        const qs = forwardParams.toString()
-        const target = `${base.replace(/\/$/, '')}/${endpoint}${qs ? `?${qs}` : ''}`
+        const target = `${base.replace(/\/$/, '')}/${endpoint}`
 
         let body = ''
         req.on('data', (chunk: Buffer) => { body += chunk.toString() })
