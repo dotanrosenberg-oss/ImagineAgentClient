@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Chat, Message, HealthStatus, Participant } from './api'
+import type { Chat, Message, HealthStatus } from './api'
 import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 import GroupActionsPanel from './GroupActionsPanel'
+import ChatActionsPanel from './ChatActionsPanel'
 import type { GroupAction } from './groupActions'
 
 interface Props {
   onCreateGroup: () => void
-  onCreateGroupFromMembers: (participants: Participant[], sourceGroupName: string) => void
   onSettings: () => void
 }
 
-export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMembers, onSettings }: Props) {
+export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [chats, setChats] = useState<Chat[]>([])
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -31,6 +31,7 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
   const [loadedPics, setLoadedPics] = useState<Set<string>>(new Set())
   const [failedPics, setFailedPics] = useState<Set<string>>(new Set())
   const [showActionsPanel, setShowActionsPanel] = useState(false)
+  const [showChatActionsPanel, setShowChatActionsPanel] = useState(false)
   const [actionResult, setActionResult] = useState<{ success: boolean; message: string } | null>(null)
   const [executingAction, setExecutingAction] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -139,6 +140,7 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
     setSelectedChat(chat)
     setShowActions(false)
     setShowActionsPanel(false)
+    setShowChatActionsPanel(false)
     setActionResult(null)
     setLoadingMessages(true)
     setMsgError(null)
@@ -530,22 +532,12 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
                 {selectedChat.type !== 'group' && (
                   <button
                     className="action-item"
-                    onClick={() => {
-                      setShowActions(false)
-                      const phone = selectedChat.phoneNumber || selectedChat.id.replace('@c.us', '')
-                      onCreateGroupFromMembers(
-                        [{ id: selectedChat.id, name: selectedChat.name, phone, isAdmin: false, isSuperAdmin: false }],
-                        selectedChat.name
-                      )
-                    }}
+                    onClick={() => { setShowActions(false); setShowChatActionsPanel(true) }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <line x1="23" y1="11" x2="17" y2="11" />
-                      <line x1="20" y1="8" x2="20" y2="14" />
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                     </svg>
-                    Create group with contact
+                    Chat Actions
                   </button>
                 )}
               </div>
@@ -555,6 +547,14 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
               <GroupActionsPanel
                 chatMessages={messages}
                 onClose={() => setShowActionsPanel(false)}
+                onExecuteAction={handleExecuteAction}
+              />
+            )}
+
+            {showChatActionsPanel && selectedChat.type !== 'group' && (
+              <ChatActionsPanel
+                chatMessages={messages}
+                onClose={() => setShowChatActionsPanel(false)}
                 onExecuteAction={handleExecuteAction}
               />
             )}

@@ -7,11 +7,14 @@ export interface GroupAction {
   apiDocUrl: string
 }
 
-const STORAGE_KEY = 'group_actions_global'
+export type ChatAction = GroupAction
 
-function loadActions(): GroupAction[] {
+const GROUP_STORAGE_KEY = 'group_actions_global'
+const CHAT_STORAGE_KEY = 'chat_actions_global'
+
+function loadFromKey(key: string): GroupAction[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(key)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed)) return parsed
@@ -19,9 +22,9 @@ function loadActions(): GroupAction[] {
       const all = Object.values(parsed).flat() as GroupAction[]
       const seen = new Set<string>()
       return all.filter((a) => {
-        const key = a.name + a.apiUrl
-        if (seen.has(key)) return false
-        seen.add(key)
+        const k = a.name + a.apiUrl
+        if (seen.has(k)) return false
+        seen.add(k)
         return true
       })
     }
@@ -31,28 +34,40 @@ function loadActions(): GroupAction[] {
   }
 }
 
-function persistActions(actions: GroupAction[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(actions))
+function persistToKey(key: string, actions: GroupAction[]): void {
+  localStorage.setItem(key, JSON.stringify(actions))
 }
 
 export function getActions(): GroupAction[] {
-  return loadActions()
+  return loadFromKey(GROUP_STORAGE_KEY)
 }
 
 export function saveAction(action: GroupAction): void {
-  const actions = loadActions()
+  const actions = loadFromKey(GROUP_STORAGE_KEY)
   const idx = actions.findIndex((a) => a.id === action.id)
-  if (idx >= 0) {
-    actions[idx] = action
-  } else {
-    actions.push(action)
-  }
-  persistActions(actions)
+  if (idx >= 0) actions[idx] = action
+  else actions.push(action)
+  persistToKey(GROUP_STORAGE_KEY, actions)
 }
 
 export function deleteAction(actionId: string): void {
-  const actions = loadActions().filter((a) => a.id !== actionId)
-  persistActions(actions)
+  persistToKey(GROUP_STORAGE_KEY, loadFromKey(GROUP_STORAGE_KEY).filter((a) => a.id !== actionId))
+}
+
+export function getChatActions(): ChatAction[] {
+  return loadFromKey(CHAT_STORAGE_KEY)
+}
+
+export function saveChatAction(action: ChatAction): void {
+  const actions = loadFromKey(CHAT_STORAGE_KEY)
+  const idx = actions.findIndex((a) => a.id === action.id)
+  if (idx >= 0) actions[idx] = action
+  else actions.push(action)
+  persistToKey(CHAT_STORAGE_KEY, actions)
+}
+
+export function deleteChatAction(actionId: string): void {
+  persistToKey(CHAT_STORAGE_KEY, loadFromKey(CHAT_STORAGE_KEY).filter((a) => a.id !== actionId))
 }
 
 export function generateId(): string {

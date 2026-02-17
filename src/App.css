@@ -1685,6 +1685,12 @@ button.secondary {
   background: #dde5ff;
 }
 
+.settings-divider {
+  height: 1px;
+  background: #e5e8ef;
+  margin: 0 20px;
+}
+
 .gap-empty-hint {
   font-size: 0.78rem;
   color: #8a90a0;
