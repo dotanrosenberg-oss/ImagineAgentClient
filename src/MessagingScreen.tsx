@@ -317,8 +317,13 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     return clean.slice(0, 2).toUpperCase()
   }
 
+  const proxyPicUrl = (url: string | undefined) => {
+    if (!url) return undefined
+    return `/local-api/image-proxy?url=${encodeURIComponent(url)}`
+  }
+
   const chatAvatar = (chat: Chat) => {
-    const picUrl = chat.profilePicUrl
+    const picUrl = proxyPicUrl(chat.profilePicUrl)
     const hasFailed = failedPics.has(chat.id)
     const hasLoaded = loadedPics.has(chat.id)
 

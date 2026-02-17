@@ -118,6 +118,30 @@ app.delete('/local-api/actions/:type/:id', async (req, res) => {
   res.json({ ok: true })
 })
 
+app.get('/local-api/image-proxy', async (req, res) => {
+  const url = req.query.url
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'url parameter is required' })
+  }
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+      },
+    })
+    if (!response.ok) {
+      return res.status(response.status).end()
+    }
+    const contentType = response.headers.get('content-type')
+    if (contentType) res.setHeader('Content-Type', contentType)
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+    const buffer = Buffer.from(await response.arrayBuffer())
+    res.send(buffer)
+  } catch {
+    res.status(502).end()
+  }
+})
+
 const PORT = 3001
 initDb().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
