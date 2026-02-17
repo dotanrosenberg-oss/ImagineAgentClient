@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Chat, Message, HealthStatus, Participant } from './api'
-import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats } from './api'
+import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats, getMediaUrl } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 
 interface Props {
@@ -250,7 +250,24 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
 
   const isDirectChat = (chat: Chat) => chat.type === 'direct' || chat.type === 'contact' || chat.id?.endsWith('@c.us')
 
-  const chatTypeIcon = (type: string, id?: string) => {
+  const chatTypeIcon = (type: string, id?: string, profilePicUrl?: string) => {
+    if (profilePicUrl) {
+      return (
+        <img
+          src={profilePicUrl}
+          alt=""
+          className="chat-avatar-img"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none'
+            const parent = (e.target as HTMLImageElement).parentElement
+            if (parent) {
+              const fallback = parent.querySelector('.chat-avatar-fallback') as HTMLElement
+              if (fallback) fallback.style.display = 'flex'
+            }
+          }}
+        />
+      )
+    }
     if (type === 'direct' || type === 'contact' || id?.endsWith('@c.us')) {
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -358,7 +375,7 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
               onClick={() => openChat(chat)}
             >
               <div className="chat-avatar">
-                {chatTypeIcon(chat.type, chat.id)}
+                {chatTypeIcon(chat.type, chat.id, chat.profilePicUrl)}
               </div>
               <div className="chat-info">
                 <div className="chat-name-row">
@@ -475,15 +492,73 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
                       {msg.fromName && !msg.isFromMe && (
                         <span className="message-author">{msg.fromName}</span>
                       )}
-                      <p className="message-body">{msg.body}</p>
-                      {msg.hasMedia && (
-                        <span className="media-indicator">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                          </svg>
-                          {msg.messageType || 'Attachment'}
-                        </span>
-                      )}
+                      {msg.hasMedia && selectedChat && (() => {
+                        const mt = (msg.messageType || '').toLowerCase()
+                        const isImage = mt.startsWith('image') || mt === 'sticker' || mt === 'stickermessage' || mt === 'imagemessage'
+                        const isVideo = mt.startsWith('video') || mt === 'videomessage' || mt === 'gif'
+                        const mediaSource = msg.mediaUrl || getMediaUrl(selectedChat.id, msg.id)
+                        if (isImage) {
+                          return (
+                            <div className="media-content">
+                              <img
+                                src={mediaSource}
+                                alt={msg.body || 'Image'}
+                                className="media-image"
+                                loading="lazy"
+                                onClick={() => window.open(mediaSource, '_blank')}
+                                onError={(e) => {
+                                  const el = e.target as HTMLImageElement
+                                  el.style.display = 'none'
+                                  const fallback = el.nextElementSibling as HTMLElement
+                                  if (fallback) fallback.style.display = 'flex'
+                                }}
+                              />
+                              <span className="media-fallback" style={{ display: 'none' }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                  <circle cx="8.5" cy="8.5" r="1.5" />
+                                  <polyline points="21 15 16 10 5 21" />
+                                </svg>
+                                Photo
+                              </span>
+                            </div>
+                          )
+                        }
+                        if (isVideo) {
+                          return (
+                            <div className="media-content">
+                              <video
+                                src={mediaSource}
+                                controls
+                                className="media-video"
+                                preload="metadata"
+                                onError={(e) => {
+                                  const el = e.target as HTMLVideoElement
+                                  el.style.display = 'none'
+                                  const fallback = el.nextElementSibling as HTMLElement
+                                  if (fallback) fallback.style.display = 'flex'
+                                }}
+                              />
+                              <span className="media-fallback" style={{ display: 'none' }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <polygon points="23 7 16 12 23 17 23 7" />
+                                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                                </svg>
+                                Video
+                              </span>
+                            </div>
+                          )
+                        }
+                        return (
+                          <a href={mediaSource} target="_blank" rel="noopener noreferrer" className="media-download-link">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                            </svg>
+                            {msg.messageType || 'Attachment'}
+                          </a>
+                        )
+                      })()}
+                      {msg.body && <p className="message-body">{msg.body}</p>}
                       <span className="message-time">{formatTime(msg.timestamp)}</span>
                     </div>
                   </div>

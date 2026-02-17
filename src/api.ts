@@ -6,6 +6,7 @@ export interface Chat {
   lastMessageTime?: string
   phoneNumber?: string
   unreadCount?: number
+  profilePicUrl?: string
 }
 
 export interface Message {
@@ -18,6 +19,7 @@ export interface Message {
   hasMedia: boolean
   messageType: string
   chatId?: string
+  mediaUrl?: string
 }
 
 export interface HealthStatus {
@@ -172,6 +174,12 @@ export async function fetchWhatsAppMessages(chatId: string, limit: number = 200)
   if (Array.isArray(result)) return result
   if (result && Array.isArray(result.messages)) return result.messages
   return []
+}
+
+export function getMediaUrl(chatId: string, messageId: string): string {
+  const encodedChat = encodeURIComponent(chatId)
+  const encodedMsg = encodeURIComponent(messageId)
+  return `/api/chats/${encodedChat}/messages/${encodedMsg}/media`
 }
 
 export async function sendMessage(chatId: string, message: string): Promise<{ success: boolean }> {

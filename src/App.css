@@ -354,6 +354,23 @@ button.secondary {
   align-items: center;
   justify-content: center;
   color: #7a8194;
+  overflow: hidden;
+  position: relative;
+}
+
+.chat-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.chat-avatar-fallback {
+  display: none;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
 }
 
 .chat-info {
@@ -580,6 +597,64 @@ button.secondary {
   padding: 4px 8px;
   background: rgba(0, 0, 0, 0.04);
   border-radius: 6px;
+}
+
+.media-content {
+  margin: 4px 0;
+  max-width: 320px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.media-image {
+  display: block;
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  cursor: pointer;
+  object-fit: contain;
+  background: #f0f0f0;
+}
+
+.media-image:hover {
+  opacity: 0.92;
+}
+
+.media-video {
+  display: block;
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  background: #000;
+}
+
+.media-fallback {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-style: italic;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+}
+
+.media-download-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #2563eb;
+  text-decoration: none;
+  padding: 6px 10px;
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 8px;
+  margin: 4px 0;
+}
+
+.media-download-link:hover {
+  background: rgba(37, 99, 235, 0.15);
 }
 
 .message-time {
