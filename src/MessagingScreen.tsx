@@ -250,39 +250,53 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
 
   const isDirectChat = (chat: Chat) => chat.type === 'direct' || chat.type === 'contact' || chat.id?.endsWith('@c.us')
 
-  const chatTypeIcon = (type: string, id?: string, profilePicUrl?: string) => {
-    if (profilePicUrl) {
+  const avatarColors = [
+    '#e17076', '#7bc862', '#6ec9cb', '#65aadd', '#ee7aae',
+    '#faa774', '#a695e7', '#e5ca77', '#85c1e9', '#82e0aa',
+  ]
+
+  const getAvatarColor = (id: string) => {
+    let hash = 0
+    for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0
+    return avatarColors[Math.abs(hash) % avatarColors.length]
+  }
+
+  const getInitials = (name: string | undefined) => {
+    if (!name) return '?'
+    const clean = name.replace(/^&/, '').trim()
+    if (!clean) return '?'
+    const parts = clean.split(/\s+/).filter(Boolean)
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+    return clean.slice(0, 2).toUpperCase()
+  }
+
+  const chatAvatar = (chat: Chat) => {
+    if (chat.profilePicUrl) {
       return (
-        <img
-          src={profilePicUrl}
-          alt=""
-          className="chat-avatar-img"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none'
-            const parent = (e.target as HTMLImageElement).parentElement
-            if (parent) {
-              const fallback = parent.querySelector('.chat-avatar-fallback') as HTMLElement
-              if (fallback) fallback.style.display = 'flex'
-            }
-          }}
-        />
-      )
-    }
-    if (type === 'direct' || type === 'contact' || id?.endsWith('@c.us')) {
-      return (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
+        <>
+          <img
+            src={chat.profilePicUrl}
+            alt=""
+            className="chat-avatar-img"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none'
+              const parent = (e.target as HTMLImageElement).parentElement
+              if (parent) {
+                const fb = parent.querySelector('.chat-avatar-fallback') as HTMLElement
+                if (fb) fb.style.display = 'flex'
+              }
+            }}
+          />
+          <span className="chat-avatar-fallback" style={{ background: getAvatarColor(chat.id) }}>
+            {getInitials(chat.name)}
+          </span>
+        </>
       )
     }
     return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
+      <span className="chat-avatar-initials" style={{ background: getAvatarColor(chat.id) }}>
+        {getInitials(chat.name)}
+      </span>
     )
   }
 
@@ -375,7 +389,7 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
               onClick={() => openChat(chat)}
             >
               <div className="chat-avatar">
-                {chatTypeIcon(chat.type, chat.id, chat.profilePicUrl)}
+                {chatAvatar(chat)}
               </div>
               <div className="chat-info">
                 <div className="chat-name-row">
