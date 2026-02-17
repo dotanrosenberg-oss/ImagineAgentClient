@@ -103,7 +103,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
 
         {hasMembers && sourceGroupName && (
           <div className="source-info">
-            Creating from: <strong>{sourceGroupName}</strong> ({prefillParticipants!.length} members)
+            Creating group with: <strong>{sourceGroupName}</strong>
           </div>
         )}
 

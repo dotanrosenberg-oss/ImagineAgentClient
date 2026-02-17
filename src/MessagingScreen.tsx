@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Chat, Message, HealthStatus, Participant } from './api'
-import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, checkHealth, syncChats, fetchParticipants } from './api'
+import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, checkHealth, syncChats } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 
 interface Props {
@@ -372,17 +372,16 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
                   </svg>
                   Refresh messages
                 </button>
-                {selectedChat.type === 'group' && (
+                {selectedChat.type !== 'group' && (
                   <button
                     className="action-item"
-                    onClick={async () => {
+                    onClick={() => {
                       setShowActions(false)
-                      try {
-                        const members = await fetchParticipants(selectedChat.id)
-                        onCreateGroupFromMembers(members, selectedChat.name)
-                      } catch (err) {
-                        setMsgError(err instanceof Error ? err.message : 'Failed to load members')
-                      }
+                      const phone = selectedChat.phoneNumber || selectedChat.id.replace('@c.us', '')
+                      onCreateGroupFromMembers(
+                        [{ id: selectedChat.id, name: selectedChat.name, phone, isAdmin: false, isSuperAdmin: false }],
+                        selectedChat.name
+                      )
                     }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -391,7 +390,7 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
                       <line x1="23" y1="11" x2="17" y2="11" />
                       <line x1="20" y1="8" x2="20" y2="14" />
                     </svg>
-                    Create group from members
+                    Create group with contact
                   </button>
                 )}
               </div>
