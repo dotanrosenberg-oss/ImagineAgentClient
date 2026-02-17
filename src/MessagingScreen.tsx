@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Chat, Message, HealthStatus } from './api'
-import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, checkHealth, syncChats } from './api'
+import type { Chat, Message, HealthStatus, Participant } from './api'
+import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, checkHealth, syncChats, fetchParticipants } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 
 interface Props {
   onCreateGroup: () => void
+  onCreateGroupFromMembers: (participants: Participant[], sourceGroupName: string) => void
 }
 
-export default function MessagingScreen({ onCreateGroup }: Props) {
+export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMembers }: Props) {
   const [chats, setChats] = useState<Chat[]>([])
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -371,6 +372,28 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
                   </svg>
                   Refresh messages
                 </button>
+                {selectedChat.type === 'group' && (
+                  <button
+                    className="action-item"
+                    onClick={async () => {
+                      setShowActions(false)
+                      try {
+                        const members = await fetchParticipants(selectedChat.id)
+                        onCreateGroupFromMembers(members, selectedChat.name)
+                      } catch (err) {
+                        setMsgError(err instanceof Error ? err.message : 'Failed to load members')
+                      }
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <line x1="23" y1="11" x2="17" y2="11" />
+                      <line x1="20" y1="8" x2="20" y2="14" />
+                    </svg>
+                    Create group from members
+                  </button>
+                )}
               </div>
             )}
 

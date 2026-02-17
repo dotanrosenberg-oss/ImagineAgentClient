@@ -208,6 +208,28 @@ export async function deleteMessage(chatId: string, messageId: string): Promise<
   )
 }
 
+export interface Participant {
+  id: string
+  name: string
+  phone: string
+  isAdmin: boolean
+  isSuperAdmin: boolean
+}
+
+export async function fetchParticipants(chatId: string): Promise<Participant[]> {
+  const p = chatPath(chatId)
+  const result = await apiCallWithFallback<{ participants: Participant[] } | Participant[]>(
+    `${p.v2}/participants`,
+    `${p.v1}/participants`,
+    'GET',
+    undefined,
+    10000
+  )
+  if (Array.isArray(result)) return result
+  if (result && Array.isArray(result.participants)) return result.participants
+  return []
+}
+
 export async function createGroup(
   name: string,
   participants: string[]

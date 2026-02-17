@@ -648,7 +648,9 @@ button.secondary {
 
 .create-group-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
   background: white;
   border-radius: 16px;
   padding: 20px;
@@ -696,6 +698,110 @@ button.secondary {
   margin: 8px 0 0;
   font-size: 0.8rem;
   color: #6b7280;
+}
+
+.source-info {
+  background: #eef2ff;
+  color: #3b5998;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.members-section {
+  border: 1px solid #e5e8ef;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.members-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f4f6fb;
+  border-bottom: 1px solid #e5e8ef;
+}
+
+.members-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2f3340;
+}
+
+.members-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.text-btn {
+  background: transparent;
+  color: #1f6fff;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.text-btn:hover {
+  background: #eef2ff;
+}
+
+.members-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #f0f2f5;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.member-row:last-child {
+  border-bottom: none;
+}
+
+.member-row:hover {
+  background: #f9fafb;
+}
+
+.member-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #1f6fff;
+  cursor: pointer;
+}
+
+.member-name {
+  flex: 1;
+  font-size: 0.88rem;
+  color: #1a1f36;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-phone {
+  font-size: 0.75rem;
+  color: #8a90a0;
+  white-space: nowrap;
+}
+
+.admin-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #1f6fff;
+  background: #eef2ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 @media (max-width: 700px) {
