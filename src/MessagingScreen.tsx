@@ -262,10 +262,8 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
     return clean.slice(0, 2).toUpperCase()
   }
 
-  const getProfilePicUrl = (chatId: string) => `/api/chats/${encodeURIComponent(chatId)}/profile-pic`
-
   const chatAvatar = (chat: Chat) => {
-    const picUrl = chat.profilePicUrl || getProfilePicUrl(chat.id)
+    const picUrl = chat.profilePicUrl
     const hasFailed = failedPics.has(chat.id)
     const hasLoaded = loadedPics.has(chat.id)
 
@@ -275,12 +273,12 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
           className="chat-avatar-initials"
           style={{
             background: getAvatarColor(chat.id),
-            display: hasLoaded ? 'none' : 'flex',
+            display: (picUrl && hasLoaded) ? 'none' : 'flex',
           }}
         >
           {getInitials(chat.name)}
         </span>
-        {!hasFailed && (
+        {picUrl && !hasFailed && (
           <img
             src={picUrl}
             alt=""
