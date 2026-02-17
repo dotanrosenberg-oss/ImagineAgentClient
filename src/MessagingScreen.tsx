@@ -372,7 +372,7 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
                   </svg>
                   Refresh messages
                 </button>
-                {selectedChat.type === 'group' && (
+                {selectedChat.type !== 'group' && (
                   <button
                     className="action-item"
                     onClick={async () => {
