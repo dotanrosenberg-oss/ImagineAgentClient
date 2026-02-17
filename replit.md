@@ -64,6 +64,8 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Static deployment using `dist` directory after `npm run build`
 
 ## Recent Changes
+- 2026-02-17: Added file attachment support (up to 100 MB) for both direct chats and groups
+- 2026-02-17: Added group permission toggles (send messages, add members) to group creation
 - 2026-02-17: Migrated to Chat-based API v2.0 model (Customer → Chat) with v1 fallback
 - 2026-02-17: Added support for direct/contact chats alongside group chats
 - 2026-02-17: Added new endpoints: edit message, delete message, delete chat

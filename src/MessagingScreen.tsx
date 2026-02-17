@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Chat, Message, HealthStatus, Participant } from './api'
-import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, checkHealth, syncChats } from './api'
+import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 
 interface Props {
@@ -23,8 +23,11 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
   const [syncing, setSyncing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterUnread, setFilterUnread] = useState(false)
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     selectedChatRef.current = selectedChat
@@ -141,19 +144,76 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
     }
   }, [])
 
+  const MAX_FILE_SIZE = 100 * 1024 * 1024
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        resolve(result.split(',')[1])
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleAttachmentSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > MAX_FILE_SIZE) {
+      setMsgError(`File too large (${formatFileSize(file.size)}). Maximum is 100 MB.`)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+    setAttachmentFile(file)
+    setMsgError(null)
+  }
+
+  const removeAttachment = () => {
+    setAttachmentFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   const handleSend = async () => {
-    if (!newMessage.trim() || !selectedChat || sending) return
+    if ((!newMessage.trim() && !attachmentFile) || !selectedChat || sending) return
     setSending(true)
+    setUploadProgress(attachmentFile ? 'Preparing file...' : null)
     try {
-      await sendMessage(selectedChat.id, newMessage.trim())
+      if (attachmentFile) {
+        setUploadProgress('Uploading...')
+        const base64 = await fileToBase64(attachmentFile)
+        await sendMessageWithAttachment(
+          selectedChat.id,
+          { data: base64, filename: attachmentFile.name, mimetype: attachmentFile.type || 'application/octet-stream' },
+          newMessage
+        )
+        setAttachmentFile(null)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      } else {
+        await sendMessage(selectedChat.id, newMessage.trim())
+      }
       setNewMessage('')
+      setUploadProgress(null)
       let data = await fetchMessages(selectedChat.id)
       if (data.length === 0) {
         data = await fetchWhatsAppMessages(selectedChat.id, 100)
       }
       setMessages(data)
     } catch (err) {
-      setMsgError(err instanceof Error ? err.message : 'Failed to send message')
+      const errMsg = err instanceof Error ? err.message : 'Failed to send message'
+      if (errMsg.includes('413') || errMsg.toLowerCase().includes('too large') || errMsg.toLowerCase().includes('payload')) {
+        setMsgError('File is too large for the server. Try a smaller file.')
+      } else {
+        setMsgError(errMsg)
+      }
+      setUploadProgress(null)
     } finally {
       setSending(false)
     }
@@ -416,7 +476,14 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
                         <span className="message-author">{msg.fromName}</span>
                       )}
                       <p className="message-body">{msg.body}</p>
-                      {msg.hasMedia && <span className="media-indicator">{msg.messageType || 'Attachment'}</span>}
+                      {msg.hasMedia && (
+                        <span className="media-indicator">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                          </svg>
+                          {msg.messageType || 'Attachment'}
+                        </span>
+                      )}
                       <span className="message-time">{formatTime(msg.timestamp)}</span>
                     </div>
                   </div>
@@ -425,30 +492,71 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="message-input-bar">
-              <input
-                type="text"
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSend()
-                  }
-                }}
-                disabled={sending}
-              />
-              <button
-                className="send-btn"
-                onClick={handleSend}
-                disabled={!newMessage.trim() || sending}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
-              </button>
+            <div className="message-input-area">
+              {attachmentFile && (
+                <div className="attachment-preview">
+                  <div className="attachment-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                  </div>
+                  <div className="attachment-info">
+                    <span className="attachment-name">{attachmentFile.name}</span>
+                    <span className="attachment-size">{formatFileSize(attachmentFile.size)}</span>
+                  </div>
+                  <button className="attachment-remove" onClick={removeAttachment} disabled={sending}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+              {uploadProgress && (
+                <div className="upload-progress">{uploadProgress}</div>
+              )}
+              <div className="message-input-bar">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleAttachmentSelect}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  className="attach-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={sending}
+                  title="Attach file (max 100 MB)"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                </button>
+                <input
+                  type="text"
+                  placeholder={attachmentFile ? "Add a caption..." : "Type a message..."}
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSend()
+                    }
+                  }}
+                  disabled={sending}
+                />
+                <button
+                  className="send-btn"
+                  onClick={handleSend}
+                  disabled={(!newMessage.trim() && !attachmentFile) || sending}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </>
         )}

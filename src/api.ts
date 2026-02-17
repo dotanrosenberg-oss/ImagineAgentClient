@@ -184,6 +184,27 @@ export async function sendMessage(chatId: string, message: string): Promise<{ su
   )
 }
 
+export async function sendMessageWithAttachment(
+  chatId: string,
+  file: { data: string; filename: string; mimetype: string },
+  message?: string
+): Promise<{ success: boolean }> {
+  const p = chatPath(chatId)
+  const body: Record<string, unknown> = {
+    file: file.data,
+    filename: file.filename,
+    mimetype: file.mimetype,
+  }
+  if (message && message.trim()) body.message = message.trim()
+  return apiCallWithFallback(
+    `${p.v2}/messages`,
+    `${p.v1}/messages`,
+    'POST',
+    body,
+    120000
+  )
+}
+
 export async function editMessage(chatId: string, messageId: string, message: string): Promise<void> {
   const p = chatPath(chatId)
   const msgId = encodeURIComponent(messageId)
