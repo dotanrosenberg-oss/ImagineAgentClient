@@ -20,6 +20,7 @@ export default function SettingsScreen({ onBack }: Props) {
   const [formApiUrl, setFormApiUrl] = useState('')
   const [formApiKey, setFormApiKey] = useState('')
   const [formApiDocUrl, setFormApiDocUrl] = useState('')
+  const [formProjectId, setFormProjectId] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function SettingsScreen({ onBack }: Props) {
     setFormApiUrl('')
     setFormApiKey('')
     setFormApiDocUrl('')
+    setFormProjectId('')
     setShowApiKey(false)
     setEditing(null)
     setFormTarget(null)
@@ -50,6 +52,7 @@ export default function SettingsScreen({ onBack }: Props) {
     setFormApiUrl(action.apiUrl)
     setFormApiKey(action.apiKey)
     setFormApiDocUrl(action.apiDocUrl || '')
+    setFormProjectId(action.projectId ? String(action.projectId) : '')
     setShowApiKey(false)
     setEditing(action)
     setFormTarget(target)
@@ -65,6 +68,7 @@ export default function SettingsScreen({ onBack }: Props) {
       apiUrl: formApiUrl.trim(),
       apiKey: formApiKey.trim(),
       apiDocUrl: formApiDocUrl.trim(),
+      projectId: formProjectId.trim() ? parseInt(formProjectId.trim(), 10) : undefined,
     }
 
     if (formTarget === 'group') {
@@ -132,6 +136,17 @@ export default function SettingsScreen({ onBack }: Props) {
           placeholder="https://docs.example.com/api"
           value={formApiDocUrl}
           onChange={(e) => setFormApiDocUrl(e.target.value)}
+        />
+      </label>
+
+      <label className="gap-label">
+        Project ID
+        <input
+          type="number"
+          className="gap-input"
+          placeholder="e.g. 1"
+          value={formProjectId}
+          onChange={(e) => setFormProjectId(e.target.value)}
         />
       </label>
 

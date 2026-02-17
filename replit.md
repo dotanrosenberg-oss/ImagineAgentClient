@@ -63,23 +63,25 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 
 ## Backend
 - **`server/index.js`**: Express server on port 3001 providing CRUD API for actions stored in PostgreSQL
-- **Database**: PostgreSQL `actions` table with columns: id, type (group/chat), name, description, api_url, api_key, api_doc_url, created_at, updated_at
+- **Database**: PostgreSQL `actions` table with columns: id, type (group/chat), name, description, api_url, api_key, api_doc_url, project_id, created_at, updated_at
 - **Endpoints**:
   - `GET /local-api/actions/:type` — list actions by type
   - `POST /local-api/actions/:type` — create/update an action (upsert by id)
   - `DELETE /local-api/actions/:type/:id` — delete an action
+  - `POST /local-api/actions/execute` — execute an action (proxies to external API server-side to avoid CORS)
 
 ## Deployment
 - Autoscale deployment: builds with `npm run build`, runs Express backend + Vite preview
 
 ## Group Actions
-- **`src/groupActions.ts`**: Data model and API client for global group actions (stored in PostgreSQL). Each action has: id, name, description, apiUrl, apiKey, apiDocUrl
+- **`src/groupActions.ts`**: Data model and API client for global group actions (stored in PostgreSQL). Each action has: id, name, description, apiUrl, apiKey, apiDocUrl, projectId
 - **`src/SettingsScreen.tsx`**: Full CRUD UI for managing group actions (create, edit, delete). Accessible via gear icon in sidebar header
 - **`src/GroupActionsPanel.tsx`**: Simplified execute-only panel for group chats — lists available actions, invoke flow with context message selection
 - Actions are stored in PostgreSQL database (available in all group chats)
-- Executing an action opens a confirmation view where you can attach an optional message, then sends a POST request with groupId, groupName, action name, and message in the body
-- Action invoke view shows recent chat messages with checkboxes to include as context — selected messages are sent as `contextMessages` array in the API payload
-- API key is sent via both `Authorization: Bearer` and `x-api-key` headers
+- Executing an action opens a confirmation view where you can attach an optional message, then sends a POST request to the backend execute proxy
+- Action invoke view shows recent chat messages with checkboxes to include as context — selected messages are sent as description text in the API payload
+- Backend proxies the call to the external API (TaskFlow format: title, projectId, description, status, priority) with Bearer token auth
+- API key is sent via `Authorization: Bearer` header through server-side proxy (avoids CORS issues)
 
 ## Chat Actions
 - **`src/groupActions.ts`**: Also provides async API client for chat actions with getChatActions/saveChatAction/deleteChatAction

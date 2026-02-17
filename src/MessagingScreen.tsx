@@ -250,13 +250,24 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     setExecutingAction(true)
     setActionResult(null)
     try {
-      const payload: Record<string, unknown> = {
-        groupId: selectedChat?.id,
-        groupName: selectedChat?.name,
-        action: action.name,
+      const descriptionParts: string[] = []
+      if (message) descriptionParts.push(message)
+      if (contextMessages.length > 0) {
+        descriptionParts.push('\n--- Context Messages ---')
+        contextMessages.forEach((m) => {
+          const author = m.isFromMe ? 'You' : (m.fromName || 'Unknown')
+          descriptionParts.push(`[${author}]: ${m.body}`)
+        })
       }
-      if (message) payload.message = message
-      if (contextMessages.length > 0) payload.contextMessages = contextMessages
+      descriptionParts.push(`\nChat: ${selectedChat?.name || ''} (${selectedChat?.id || ''})`)
+
+      const payload: Record<string, unknown> = {
+        title: `${action.name} - ${selectedChat?.name || 'Unknown'}`,
+        projectId: action.projectId || 1,
+        description: descriptionParts.join('\n'),
+        status: 'todo',
+        priority: 'medium',
+      }
 
       const response = await fetch('/local-api/actions/execute', {
         method: 'POST',

@@ -5,6 +5,7 @@ export interface GroupAction {
   apiUrl: string
   apiKey: string
   apiDocUrl: string
+  projectId?: number
 }
 
 export type ChatAction = GroupAction
