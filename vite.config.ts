@@ -20,25 +20,36 @@ function getServerConfig() {
 export default defineConfig(() => {
   const { serverUrl, apiKey } = getServerConfig()
 
+  const proxyConfig = serverUrl ? {
+    '/api': {
+      target: serverUrl,
+      changeOrigin: true,
+      configure: (proxy: any) => {
+        proxy.on('proxyReq', (proxyReq: any) => {
+          if (apiKey) {
+            proxyReq.setHeader('X-API-Key', apiKey)
+          }
+        })
+      },
+    },
+    '/ws': {
+      target: serverUrl,
+      ws: true,
+      changeOrigin: true,
+      rewrite: (path: string) => {
+        const separator = path.includes('?') ? '&' : '?'
+        return `${path}${separator}apiKey=${encodeURIComponent(apiKey)}`
+      },
+    },
+  } : undefined
+
   return {
     plugins: [react()],
     server: {
       host: '0.0.0.0',
       port: 5000,
-      allowedHosts: true,
-      proxy: serverUrl ? {
-        '/api': {
-          target: serverUrl,
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on('proxyReq', (proxyReq) => {
-              if (apiKey) {
-                proxyReq.setHeader('X-API-Key', apiKey)
-              }
-            })
-          },
-        },
-      } : undefined,
+      allowedHosts: true as const,
+      proxy: proxyConfig,
     },
   }
 })

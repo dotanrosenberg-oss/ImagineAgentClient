@@ -146,6 +146,30 @@ button.secondary {
   background: white;
 }
 
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #1a1f36;
+  color: #d1d5e0;
+  font-size: 0.78rem;
+  border-bottom: 1px solid #2a3050;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  border-radius: 50%;
+}
+
+.status-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .chat-sidebar {
   width: 340px;
   min-width: 340px;
@@ -153,6 +177,19 @@ button.secondary {
   display: flex;
   flex-direction: column;
   background: #fafbfd;
+}
+
+.sync-btn {
+  margin-top: 12px;
+  background: #eef2ff;
+  color: #1f6fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.sync-btn:hover {
+  background: #dde5ff;
 }
 
 .sidebar-header {

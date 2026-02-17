@@ -1,24 +1,40 @@
-export interface Chat {
+export interface Customer {
   id: string
   name: string
-  isGroup: boolean
-  timestamp: number
-  lastMessage?: {
-    body: string
-    timestamp: number
-    fromMe: boolean
-  }
-  unreadCount?: number
+  lastMessage?: string
+  lastMessageTime?: string
+  phoneNumber?: string
 }
 
 export interface Message {
   id: string
   body: string
-  timestamp: number
-  fromMe: boolean
-  author?: string
+  timestamp: string
+  isFromMe: boolean
+  fromPhone?: string
+  fromName?: string
   hasMedia: boolean
-  type: string
+  messageType: string
+  customerId?: string
+}
+
+export interface HealthStatus {
+  status: string
+  whatsapp: {
+    status: string
+    phoneNumber: string
+    name: string
+  }
+  websocket: {
+    clients: number
+  }
+}
+
+export interface SyncStatus {
+  totalGroups: number
+  adminGroups: number
+  totalParticipants: number
+  lastSync: string
 }
 
 export interface GroupCreateResult {
@@ -30,52 +46,106 @@ export interface GroupCreateResult {
 async function apiCall<T>(
   endpoint: string,
   method: string = 'GET',
-  body?: unknown
+  body?: unknown,
+  timeoutMs: number = 10000
 ): Promise<T> {
-  const opts: RequestInit = {
-    method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    ...(body ? { body: JSON.stringify(body) } : {}),
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const opts: RequestInit = {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      signal: controller.signal,
+    }
+
+    const response = await fetch(`/${endpoint}`, opts)
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Authentication failed. Check server API key.')
+    }
+
+    if (response.status === 503) {
+      throw new Error('Server is not connected to WhatsApp. Please wait and try again.')
+    }
+
+    if (!response.ok) {
+      const text = await response.text()
+      let msg = `Server error (${response.status})`
+      try {
+        const parsed = JSON.parse(text)
+        if (parsed.message) msg = parsed.message
+        else if (parsed.error) msg = parsed.error
+      } catch { /* ignore */ }
+      throw new Error(msg)
+    }
+
+    return response.json() as Promise<T>
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Request timed out. The server may be busy.')
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
   }
-
-  const response = await fetch(`/${endpoint}`, opts)
-
-  if (response.status === 401 || response.status === 403) {
-    throw new Error('Authentication failed. Check server API key.')
-  }
-
-  if (!response.ok) {
-    const text = await response.text()
-    let msg = `Server error (${response.status})`
-    try {
-      const parsed = JSON.parse(text)
-      if (parsed.error) msg = parsed.error
-    } catch { /* ignore */ }
-    throw new Error(msg)
-  }
-
-  return response.json() as Promise<T>
 }
 
-export async function fetchChats(): Promise<Chat[]> {
-  return apiCall<Chat[]>('api/chats')
+export async function checkStatus(): Promise<{ ready: boolean }> {
+  return apiCall<{ ready: boolean }>('api/status', 'GET', undefined, 5000)
 }
 
-export async function fetchMessages(chatId: string): Promise<Message[]> {
-  return apiCall<Message[]>(`api/chats/${encodeURIComponent(chatId)}/messages`)
+export async function checkHealth(): Promise<HealthStatus> {
+  return apiCall<HealthStatus>('api/health', 'GET', undefined, 5000)
 }
 
-export async function sendMessage(chatId: string, message: string): Promise<{ success: boolean }> {
-  return apiCall('api/send-message', 'POST', { chatId, message })
+export async function fetchCustomers(): Promise<Customer[]> {
+  return apiCall<Customer[]>('api/customers', 'GET', undefined, 10000)
+}
+
+export async function syncCustomers(): Promise<Customer[]> {
+  return apiCall<Customer[]>('api/customers/sync', 'POST', undefined, 60000)
+}
+
+export async function getSyncStatus(): Promise<SyncStatus> {
+  return apiCall<SyncStatus>('api/admin/sync-status', 'GET', undefined, 5000)
+}
+
+export async function fetchMessages(customerId: string, limit: number = 50): Promise<Message[]> {
+  return apiCall<Message[]>(
+    `api/customers/${encodeURIComponent(customerId)}/messages?limit=${limit}`,
+    'GET',
+    undefined,
+    10000
+  )
+}
+
+export async function fetchWhatsAppMessages(chatId: string, limit: number = 200): Promise<Message[]> {
+  return apiCall<Message[]>(
+    `api/whatsapp/messages/${encodeURIComponent(chatId)}?limit=${limit}`,
+    'GET',
+    undefined,
+    60000
+  )
+}
+
+export async function sendMessage(customerId: string, message: string): Promise<{ success: boolean }> {
+  return apiCall(
+    `api/customers/${encodeURIComponent(customerId)}/messages`,
+    'POST',
+    { message },
+    30000
+  )
 }
 
 export async function createGroup(
   name: string,
   participants: string[]
 ): Promise<GroupCreateResult> {
-  return apiCall('api/group/create', 'POST', { name, participants })
+  return apiCall('api/groups/create', 'POST', { name, participants }, 60000)
 }
 
-export async function checkStatus(): Promise<{ ready: boolean; message?: string }> {
-  return apiCall<{ ready: boolean; message?: string }>('api/status')
+export async function checkNumber(phoneNumber: string): Promise<{ registered: boolean }> {
+  return apiCall('api/diagnostics/check-number', 'POST', { phoneNumber }, 30000)
 }
