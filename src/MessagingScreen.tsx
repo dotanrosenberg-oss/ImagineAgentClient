@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Customer, Message, HealthStatus } from './api'
-import { fetchCustomers, fetchMessages, sendMessage, checkHealth, syncCustomers } from './api'
+import type { Chat, Message, HealthStatus } from './api'
+import { fetchChats, fetchMessages, sendMessage, checkHealth, syncChats } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 
 interface Props {
@@ -8,8 +8,8 @@ interface Props {
 }
 
 export default function MessagingScreen({ onCreateGroup }: Props) {
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [chats, setChats] = useState<Chat[]>([])
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
@@ -21,28 +21,28 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
   const [health, setHealth] = useState<HealthStatus | null>(null)
   const [syncing, setSyncing] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const selectedCustomerRef = useRef<Customer | null>(null)
+  const selectedChatRef = useRef<Chat | null>(null)
 
   useEffect(() => {
-    selectedCustomerRef.current = selectedCustomer
-  }, [selectedCustomer])
+    selectedChatRef.current = selectedChat
+  }, [selectedChat])
 
   useEffect(() => {
     loadHealth()
-    loadCustomers()
+    loadChats()
     connectWebSocket()
 
     const unsubscribe = onWSMessage((msg) => {
       if (msg.type === 'message' && msg.data) {
-        const incomingCustomerId = msg.data.customerId as string
-        setCustomers((prev) =>
+        const incomingChatId = (msg.data.chatId || msg.chat?.id) as string
+        setChats((prev) =>
           prev.map((c) =>
-            c.id === incomingCustomerId
+            c.id === incomingChatId
               ? { ...c, lastMessage: msg.data.body as string, lastMessageTime: msg.data.timestamp as string }
               : c
           )
         )
-        if (selectedCustomerRef.current?.id === incomingCustomerId) {
+        if (selectedChatRef.current?.id === incomingChatId) {
           setMessages((prev) => [
             ...prev,
             {
@@ -57,16 +57,16 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
             },
           ])
         }
-      } else if (msg.type === 'customer_update' && msg.data) {
-        setCustomers((prev) =>
+      } else if (msg.type === 'chat_update' && msg.data) {
+        setChats((prev) =>
           prev.map((c) =>
             c.id === (msg.data.id as string)
               ? { ...c, name: (msg.data.name as string) || c.name, lastMessage: msg.data.lastMessage as string, lastMessageTime: msg.data.lastMessageTime as string }
               : c
           )
         )
-      } else if (msg.type === 'customers_synced') {
-        loadCustomers()
+      } else if (msg.type === 'chats_synced') {
+        loadChats()
       } else if (msg.type === 'service_unavailable') {
         setHealth((prev) =>
           prev ? { ...prev, whatsapp: { ...prev.whatsapp, status: 'disconnected' } } : prev
@@ -93,12 +93,12 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
     }
   }
 
-  const loadCustomers = async () => {
+  const loadChats = async () => {
     setLoading(true)
     setChatError(null)
     try {
-      const data = await fetchCustomers()
-      setCustomers(data)
+      const data = await fetchChats()
+      setChats(data)
     } catch (err) {
       setChatError(err instanceof Error ? err.message : 'Failed to load chats')
     } finally {
@@ -110,8 +110,8 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
     setSyncing(true)
     setChatError(null)
     try {
-      const data = await syncCustomers()
-      setCustomers(data)
+      const data = await syncChats()
+      setChats(data)
     } catch (err) {
       setChatError(err instanceof Error ? err.message : 'Failed to sync')
     } finally {
@@ -119,13 +119,13 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
     }
   }
 
-  const openChat = useCallback(async (customer: Customer) => {
-    setSelectedCustomer(customer)
+  const openChat = useCallback(async (chat: Chat) => {
+    setSelectedChat(chat)
     setShowActions(false)
     setLoadingMessages(true)
     setMsgError(null)
     try {
-      const data = await fetchMessages(customer.id)
+      const data = await fetchMessages(chat.id)
       setMessages(data)
     } catch (err) {
       setMsgError(err instanceof Error ? err.message : 'Failed to load messages')
@@ -136,12 +136,12 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
   }, [])
 
   const handleSend = async () => {
-    if (!newMessage.trim() || !selectedCustomer || sending) return
+    if (!newMessage.trim() || !selectedChat || sending) return
     setSending(true)
     try {
-      await sendMessage(selectedCustomer.id, newMessage.trim())
+      await sendMessage(selectedChat.id, newMessage.trim())
       setNewMessage('')
-      const data = await fetchMessages(selectedCustomer.id)
+      const data = await fetchMessages(selectedChat.id)
       setMessages(data)
     } catch (err) {
       setMsgError(err instanceof Error ? err.message : 'Failed to send message')
@@ -179,9 +179,30 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
     ? `${health.whatsapp.name} (${health.whatsapp.phoneNumber}) - ${health.whatsapp.status}`
     : 'Connecting...'
 
+  const isDirectChat = (chat: Chat) => chat.type === 'direct' || chat.type === 'contact' || chat.id?.endsWith('@c.us')
+
+  const chatTypeIcon = (type: string, id?: string) => {
+    if (type === 'direct' || type === 'contact' || id?.endsWith('@c.us')) {
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      )
+    }
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    )
+  }
+
   return (
     <div className="messaging-layout">
-      <div className={`chat-sidebar ${selectedCustomer ? 'hidden-mobile' : ''}`}>
+      <div className={`chat-sidebar ${selectedChat ? 'hidden-mobile' : ''}`}>
         <div className="status-bar">
           <span className="status-dot" style={{ background: statusColor }} />
           <span className="status-text">{statusText}</span>
@@ -189,7 +210,7 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
         <div className="sidebar-header">
           <h2>Chats</h2>
           <div className="sidebar-actions">
-            <button className="icon-btn" onClick={handleSync} title="Sync groups from WhatsApp" disabled={syncing}>
+            <button className="icon-btn" onClick={handleSync} title="Sync chats from WhatsApp" disabled={syncing}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" />
               </svg>
@@ -205,39 +226,34 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
           </div>
         </div>
 
-        {syncing && <div className="loading-state">Syncing groups from WhatsApp...</div>}
+        {syncing && <div className="loading-state">Syncing chats from WhatsApp...</div>}
         {loading && !syncing && <div className="loading-state">Loading chats...</div>}
         {chatError && <div className="error-state">{chatError}</div>}
 
         <div className="chat-list">
-          {customers.map((customer) => (
+          {chats.map((chat) => (
             <button
-              key={customer.id}
-              className={`chat-item ${selectedCustomer?.id === customer.id ? 'active' : ''}`}
-              onClick={() => openChat(customer)}
+              key={chat.id}
+              className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
+              onClick={() => openChat(chat)}
             >
               <div className="chat-avatar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
+                {chatTypeIcon(chat.type, chat.id)}
               </div>
               <div className="chat-info">
                 <div className="chat-name-row">
-                  <span className="chat-name">{customer.name}</span>
-                  {customer.lastMessageTime && (
-                    <span className="chat-time">{formatTime(customer.lastMessageTime)}</span>
+                  <span className="chat-name">{chat.name}</span>
+                  {chat.lastMessageTime && (
+                    <span className="chat-time">{formatTime(chat.lastMessageTime)}</span>
                   )}
                 </div>
-                {customer.lastMessage && (
-                  <p className="chat-preview">{customer.lastMessage}</p>
+                {chat.lastMessage && (
+                  <p className="chat-preview">{chat.lastMessage}</p>
                 )}
               </div>
             </button>
           ))}
-          {!loading && !syncing && customers.length === 0 && !chatError && (
+          {!loading && !syncing && chats.length === 0 && !chatError && (
             <div className="empty-state">
               <p>No chats found</p>
               <button className="sync-btn" onClick={handleSync}>
@@ -248,8 +264,8 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
         </div>
       </div>
 
-      <div className={`message-panel ${!selectedCustomer ? 'hidden-mobile' : ''}`}>
-        {!selectedCustomer ? (
+      <div className={`message-panel ${!selectedChat ? 'hidden-mobile' : ''}`}>
+        {!selectedChat ? (
           <div className="no-chat-selected">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#b0b8c9" strokeWidth="1.5">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -259,14 +275,14 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
         ) : (
           <>
             <div className="message-header">
-              <button className="back-btn" onClick={() => setSelectedCustomer(null)}>
+              <button className="back-btn" onClick={() => setSelectedChat(null)}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M19 12H5M12 19l-7-7 7-7" />
                 </svg>
               </button>
               <div className="header-chat-info">
-                <h3>{selectedCustomer.name}</h3>
-                <span className="group-tag">Group</span>
+                <h3>{selectedChat.name}</h3>
+                <span className="chat-type-tag">{isDirectChat(selectedChat) ? 'Direct' : 'Group'}</span>
               </div>
               <div className="header-actions">
                 <button
@@ -285,7 +301,7 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
 
             {showActions && (
               <div className="actions-dropdown">
-                <button className="action-item" onClick={() => { setShowActions(false); openChat(selectedCustomer) }}>
+                <button className="action-item" onClick={() => { setShowActions(false); openChat(selectedChat) }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" />
                   </svg>

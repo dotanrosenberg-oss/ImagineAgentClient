@@ -1,6 +1,7 @@
-export interface Customer {
+export interface Chat {
   id: string
   name: string
+  type: 'group' | 'direct' | 'contact'
   lastMessage?: string
   lastMessageTime?: string
   phoneNumber?: string
@@ -15,7 +16,7 @@ export interface Message {
   fromName?: string
   hasMedia: boolean
   messageType: string
-  customerId?: string
+  chatId?: string
 }
 
 export interface HealthStatus {
@@ -28,13 +29,6 @@ export interface HealthStatus {
   websocket: {
     clients: number
   }
-}
-
-export interface SyncStatus {
-  totalGroups: number
-  adminGroups: number
-  totalParticipants: number
-  lastSync: string
 }
 
 export interface GroupCreateResult {
@@ -70,7 +64,19 @@ async function apiCall<T>(
       throw new Error('Server is not connected to WhatsApp. Please wait and try again.')
     }
 
+    const contentType = response.headers.get('content-type') || ''
+    if (response.ok && !contentType.includes('application/json')) {
+      const err = new Error('Endpoint not available')
+      ;(err as any).endpointMissing = true
+      throw err
+    }
+
     if (!response.ok) {
+      if (response.status === 404 || response.status === 405) {
+        const err = new Error(`Endpoint not found (${response.status})`)
+        ;(err as any).endpointMissing = true
+        throw err
+      }
       const text = await response.text()
       let msg = `Server error (${response.status})`
       try {
@@ -92,6 +98,31 @@ async function apiCall<T>(
   }
 }
 
+async function apiCallWithFallback<T>(
+  v2Endpoint: string,
+  v1Endpoint: string,
+  method: string = 'GET',
+  body?: unknown,
+  timeoutMs: number = 10000
+): Promise<T> {
+  try {
+    return await apiCall<T>(v2Endpoint, method, body, timeoutMs)
+  } catch (err: any) {
+    if (err?.endpointMissing) {
+      return apiCall<T>(v1Endpoint, method, body, timeoutMs)
+    }
+    throw err
+  }
+}
+
+function chatPath(chatId: string): { v2: string; v1: string } {
+  const encoded = encodeURIComponent(chatId)
+  return {
+    v2: `api/chats/${encoded}`,
+    v1: `api/customers/${encoded}`,
+  }
+}
+
 export async function checkStatus(): Promise<{ ready: boolean }> {
   return apiCall<{ ready: boolean }>('api/status', 'GET', undefined, 5000)
 }
@@ -100,24 +131,32 @@ export async function checkHealth(): Promise<HealthStatus> {
   return apiCall<HealthStatus>('api/health', 'GET', undefined, 5000)
 }
 
-export async function fetchCustomers(): Promise<Customer[]> {
-  return apiCall<Customer[]>('api/customers', 'GET', undefined, 10000)
+export async function fetchChats(): Promise<Chat[]> {
+  return apiCallWithFallback<Chat[]>('api/chats', 'api/customers', 'GET', undefined, 10000)
 }
 
-export async function syncCustomers(): Promise<Customer[]> {
-  return apiCall<Customer[]>('api/customers/sync', 'POST', undefined, 60000)
+export async function fetchChat(chatId: string): Promise<Chat> {
+  const p = chatPath(chatId)
+  return apiCallWithFallback<Chat>(p.v2, p.v1, 'GET', undefined, 5000)
 }
 
-export async function getSyncStatus(): Promise<SyncStatus> {
-  return apiCall<SyncStatus>('api/admin/sync-status', 'GET', undefined, 5000)
+export async function syncChats(): Promise<Chat[]> {
+  return apiCallWithFallback<Chat[]>('api/chats/sync', 'api/customers/sync', 'POST', undefined, 60000)
 }
 
-export async function fetchMessages(customerId: string, limit: number = 50): Promise<Message[]> {
-  return apiCall<Message[]>(
-    `api/customers/${encodeURIComponent(customerId)}/messages?limit=${limit}`,
+export async function deleteChat(chatId: string): Promise<void> {
+  const p = chatPath(chatId)
+  return apiCallWithFallback<void>(p.v2, p.v1, 'DELETE', undefined, 30000)
+}
+
+export async function fetchMessages(chatId: string, limit: number = 50): Promise<Message[]> {
+  const p = chatPath(chatId)
+  return apiCallWithFallback<Message[]>(
+    `${p.v2}/messages?limit=${limit}`,
+    `${p.v1}/messages?limit=${limit}`,
     'GET',
     undefined,
-    10000
+    5000
   )
 }
 
@@ -130,11 +169,37 @@ export async function fetchWhatsAppMessages(chatId: string, limit: number = 200)
   )
 }
 
-export async function sendMessage(customerId: string, message: string): Promise<{ success: boolean }> {
-  return apiCall(
-    `api/customers/${encodeURIComponent(customerId)}/messages`,
+export async function sendMessage(chatId: string, message: string): Promise<{ success: boolean }> {
+  const p = chatPath(chatId)
+  return apiCallWithFallback(
+    `${p.v2}/messages`,
+    `${p.v1}/messages`,
     'POST',
     { message },
+    30000
+  )
+}
+
+export async function editMessage(chatId: string, messageId: string, message: string): Promise<void> {
+  const p = chatPath(chatId)
+  const msgId = encodeURIComponent(messageId)
+  return apiCallWithFallback(
+    `${p.v2}/messages/${msgId}`,
+    `${p.v1}/messages/${msgId}`,
+    'PATCH',
+    { message },
+    30000
+  )
+}
+
+export async function deleteMessage(chatId: string, messageId: string): Promise<void> {
+  const p = chatPath(chatId)
+  const msgId = encodeURIComponent(messageId)
+  return apiCallWithFallback(
+    `${p.v2}/messages/${msgId}`,
+    `${p.v1}/messages/${msgId}`,
+    'DELETE',
+    undefined,
     30000
   )
 }

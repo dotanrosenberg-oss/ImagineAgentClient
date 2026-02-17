@@ -1,7 +1,7 @@
 export interface WSMessage {
-  type: 'connected' | 'message' | 'message_edit' | 'message_delete' | 'customer_update' | 'customers_synced' | 'service_unavailable' | 'poll_vote'
+  type: 'connected' | 'message' | 'message_edit' | 'message_delete' | 'chat_update' | 'chats_synced' | 'service_unavailable' | 'poll_vote'
   data: Record<string, unknown>
-  customer?: { id: string; name: string }
+  chat?: { id: string; name: string }
 }
 
 type WSEventHandler = (msg: WSMessage) => void

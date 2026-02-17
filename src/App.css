@@ -373,7 +373,7 @@ button.secondary {
   text-overflow: ellipsis;
 }
 
-.group-tag {
+.chat-type-tag {
   font-size: 0.72rem;
   color: #6b7280;
   background: #eef2f7;
