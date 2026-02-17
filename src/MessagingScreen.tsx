@@ -242,7 +242,7 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
     return d.toLocaleDateString()
   }
 
-  const handleExecuteAction = async (action: GroupAction, message: string) => {
+  const handleExecuteAction = async (action: GroupAction, message: string, contextMessages: { id: string; body: string; timestamp: string; fromName?: string; isFromMe: boolean }[]) => {
     if (executingAction) return
     setExecutingAction(true)
     setActionResult(null)
@@ -257,6 +257,7 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
         action: action.name,
       }
       if (message) payload.message = message
+      if (contextMessages.length > 0) payload.contextMessages = contextMessages
 
       const response = await fetch(action.apiUrl, {
         method: 'POST',
@@ -546,6 +547,7 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
             {showActionsPanel && selectedChat.type === 'group' && (
               <GroupActionsPanel
                 groupId={selectedChat.id}
+                chatMessages={messages}
                 onClose={() => setShowActionsPanel(false)}
                 onExecuteAction={handleExecuteAction}
               />

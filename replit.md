@@ -68,6 +68,7 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - **`src/GroupActionsPanel.tsx`**: Full CRUD UI for managing group actions (create, edit, delete). Accessible via the "..." menu on group chats
 - Actions are stored per-group in localStorage under `group_actions` key
 - Executing an action opens a confirmation view where you can attach an optional message, then sends a POST request with groupId, groupName, action name, and message in the body
+- Action invoke view shows recent chat messages with checkboxes to include as context — selected messages are sent as `contextMessages` array in the API payload
 - API key is sent via both `Authorization: Bearer` and `x-api-key` headers
 
 ## Recent Changes

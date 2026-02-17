@@ -1,20 +1,31 @@
 import { useState, useEffect } from 'react'
 import type { GroupAction } from './groupActions'
 import { getActionsForGroup, saveAction, deleteAction, generateId } from './groupActions'
+import type { Message } from './api'
+
+interface ContextMessage {
+  id: string
+  body: string
+  timestamp: string
+  fromName?: string
+  isFromMe: boolean
+}
 
 interface Props {
   groupId: string
+  chatMessages: Message[]
   onClose: () => void
-  onExecuteAction: (action: GroupAction, message: string) => void
+  onExecuteAction: (action: GroupAction, message: string, contextMessages: ContextMessage[]) => void
 }
 
-export default function GroupActionsPanel({ groupId, onClose, onExecuteAction }: Props) {
+export default function GroupActionsPanel({ groupId, chatMessages, onClose, onExecuteAction }: Props) {
   const [actions, setActions] = useState<GroupAction[]>([])
   const [editing, setEditing] = useState<GroupAction | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [invokeAction, setInvokeAction] = useState<GroupAction | null>(null)
   const [invokeMessage, setInvokeMessage] = useState('')
+  const [selectedMsgIds, setSelectedMsgIds] = useState<Set<string>>(new Set())
 
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
@@ -73,18 +84,51 @@ export default function GroupActionsPanel({ groupId, onClose, onExecuteAction }:
     setConfirmDelete(null)
   }
 
-  const handleInvoke = () => {
-    if (!invokeAction) return
-    onExecuteAction(invokeAction, invokeMessage.trim())
+  const recentMessages = chatMessages
+    .filter((m) => m.body && m.body.trim())
+    .slice(-30)
+
+  const toggleMsg = (msgId: string) => {
+    setSelectedMsgIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(msgId)) next.delete(msgId)
+      else next.add(msgId)
+      return next
+    })
+  }
+
+  const cancelInvoke = () => {
     setInvokeAction(null)
     setInvokeMessage('')
+    setSelectedMsgIds(new Set())
+  }
+
+  const handleInvoke = () => {
+    if (!invokeAction) return
+    const selected = recentMessages
+      .filter((m) => selectedMsgIds.has(m.id))
+      .map((m) => ({
+        id: m.id,
+        body: m.body,
+        timestamp: m.timestamp,
+        fromName: m.fromName,
+        isFromMe: m.isFromMe,
+      }))
+    onExecuteAction(invokeAction, invokeMessage.trim(), selected)
+    cancelInvoke()
+  }
+
+  const formatMsgTime = (ts: string | number) => {
+    const d = typeof ts === 'number' ? new Date(ts < 1e12 ? ts * 1000 : ts) : new Date(ts)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
   if (invokeAction) {
     return (
       <div className="group-actions-panel">
         <div className="gap-header">
-          <button className="gap-back-btn" onClick={() => { setInvokeAction(null); setInvokeMessage('') }}>
+          <button className="gap-back-btn" onClick={cancelInvoke}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
@@ -95,6 +139,38 @@ export default function GroupActionsPanel({ groupId, onClose, onExecuteAction }:
           {invokeAction.description && (
             <p className="gap-invoke-desc">{invokeAction.description}</p>
           )}
+
+          {recentMessages.length > 0 && (
+            <div className="gap-context-section">
+              <span className="gap-context-label">
+                Include messages for context
+                {selectedMsgIds.size > 0 && (
+                  <span className="gap-context-count">{selectedMsgIds.size} selected</span>
+                )}
+              </span>
+              <div className="gap-context-list">
+                {recentMessages.map((msg) => (
+                  <label key={msg.id} className={`gap-context-msg ${selectedMsgIds.has(msg.id) ? 'selected' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedMsgIds.has(msg.id)}
+                      onChange={() => toggleMsg(msg.id)}
+                    />
+                    <div className="gap-context-msg-content">
+                      <div className="gap-context-msg-header">
+                        <span className="gap-context-msg-author">
+                          {msg.isFromMe ? 'You' : (msg.fromName || 'Unknown')}
+                        </span>
+                        <span className="gap-context-msg-time">{formatMsgTime(msg.timestamp)}</span>
+                      </div>
+                      <span className="gap-context-msg-body">{msg.body}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <label className="gap-label">
             Message (optional)
             <textarea
@@ -106,7 +182,7 @@ export default function GroupActionsPanel({ groupId, onClose, onExecuteAction }:
             />
           </label>
           <div className="gap-form-actions">
-            <button className="gap-btn-secondary" onClick={() => { setInvokeAction(null); setInvokeMessage('') }}>Cancel</button>
+            <button className="gap-btn-secondary" onClick={cancelInvoke}>Cancel</button>
             <button className="gap-btn-primary" onClick={handleInvoke}>
               Run Action
             </button>
