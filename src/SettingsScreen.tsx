@@ -16,6 +16,7 @@ export default function SettingsScreen({ onBack }: Props) {
   const [formDescription, setFormDescription] = useState('')
   const [formApiUrl, setFormApiUrl] = useState('')
   const [formApiKey, setFormApiKey] = useState('')
+  const [formApiDocUrl, setFormApiDocUrl] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
 
   useEffect(() => {
@@ -27,6 +28,7 @@ export default function SettingsScreen({ onBack }: Props) {
     setFormDescription('')
     setFormApiUrl('')
     setFormApiKey('')
+    setFormApiDocUrl('')
     setShowApiKey(false)
     setEditing(null)
     setShowForm(false)
@@ -42,6 +44,7 @@ export default function SettingsScreen({ onBack }: Props) {
     setFormDescription(action.description)
     setFormApiUrl(action.apiUrl)
     setFormApiKey(action.apiKey)
+    setFormApiDocUrl(action.apiDocUrl || '')
     setShowApiKey(false)
     setEditing(action)
     setShowForm(true)
@@ -56,6 +59,7 @@ export default function SettingsScreen({ onBack }: Props) {
       description: formDescription.trim(),
       apiUrl: formApiUrl.trim(),
       apiKey: formApiKey.trim(),
+      apiDocUrl: formApiDocUrl.trim(),
     }
 
     saveAction(action)
@@ -120,6 +124,17 @@ export default function SettingsScreen({ onBack }: Props) {
                   placeholder="https://api.example.com/endpoint"
                   value={formApiUrl}
                   onChange={(e) => setFormApiUrl(e.target.value)}
+                />
+              </label>
+
+              <label className="gap-label">
+                API Doc URL
+                <input
+                  type="url"
+                  className="gap-input"
+                  placeholder="https://docs.example.com/api"
+                  value={formApiDocUrl}
+                  onChange={(e) => setFormApiDocUrl(e.target.value)}
                 />
               </label>
 

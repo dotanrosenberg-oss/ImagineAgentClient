@@ -4,6 +4,7 @@ export interface GroupAction {
   description: string
   apiUrl: string
   apiKey: string
+  apiDocUrl: string
 }
 
 const STORAGE_KEY = 'group_actions_global'
