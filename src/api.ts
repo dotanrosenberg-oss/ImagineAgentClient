@@ -255,11 +255,42 @@ export async function fetchParticipants(chatId: string): Promise<Participant[]> 
 export async function createGroup(
   name: string,
   participants: string[],
-  icon?: string,
+  iconFile?: File,
   settings?: { membersCanSendMessages: boolean; membersCanAddMembers: boolean }
 ): Promise<GroupCreateResult> {
+  if (iconFile) {
+    const formData = new FormData()
+    formData.append('name', name)
+    formData.append('participants', JSON.stringify(participants))
+    if (settings) formData.append('settings', JSON.stringify(settings))
+    formData.append('icon', iconFile)
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 60000)
+    try {
+      const response = await fetch('/api/groups/create', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      })
+      clearTimeout(timer)
+      if (!response.ok) {
+        const text = await response.text()
+        let msg = `Server error (${response.status})`
+        try {
+          const parsed = JSON.parse(text)
+          if (parsed.message) msg = parsed.message
+          else if (parsed.error) msg = parsed.error
+        } catch { /* ignore */ }
+        throw new Error(msg)
+      }
+      return await response.json()
+    } catch (err) {
+      clearTimeout(timer)
+      throw err
+    }
+  }
   const body: Record<string, unknown> = { name, participants }
-  if (icon) body.icon = icon
   if (settings) body.settings = settings
   return apiCall('api/groups/create', 'POST', body, 60000)
 }

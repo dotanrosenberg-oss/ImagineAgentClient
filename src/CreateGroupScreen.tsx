@@ -12,18 +12,6 @@ interface Props {
 
 const DEFAULT_PHOTO = '/default-group-photo.png'
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      const base64 = result.split(',')[1]
-      resolve(base64)
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
 
 export default function CreateGroupScreen({ onBack, onCreated, prefillParticipants, sourceGroupName }: Props) {
   const [groupName, setGroupName] = useState('')
@@ -123,21 +111,20 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     setCreating(true)
     setError(null)
     try {
-      let photoBase64: string | undefined
+      let iconFile: File | undefined
       if (photoFile) {
-        photoBase64 = await fileToBase64(photoFile)
+        iconFile = photoFile
       } else if (useDefaultPhoto) {
         const resp = await fetch(DEFAULT_PHOTO)
         const blob = await resp.blob()
-        const defaultFile = new File([blob], 'default.png', { type: 'image/png' })
-        photoBase64 = await fileToBase64(defaultFile)
+        iconFile = new File([blob], 'default.png', { type: 'image/png' })
       }
 
       const settings = {
         membersCanSendMessages: allowSendMessages,
         membersCanAddMembers: allowAddMembers,
       }
-      const result = await createGroup(groupName.trim(), unique, photoBase64, settings)
+      const result = await createGroup(groupName.trim(), unique, iconFile, settings)
       setSuccess(true)
       setTimeout(() => onCreated(result.groupId || result.id), 1000)
     } catch (err) {
