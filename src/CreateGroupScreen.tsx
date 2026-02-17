@@ -35,6 +35,8 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string>(DEFAULT_PHOTO)
   const [useDefaultPhoto, setUseDefaultPhoto] = useState(true)
+  const [allowSendMessages, setAllowSendMessages] = useState(true)
+  const [allowAddMembers, setAllowAddMembers] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -131,7 +133,11 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
         photoBase64 = await fileToBase64(defaultFile)
       }
 
-      const result = await createGroup(groupName.trim(), unique, photoBase64)
+      const settings = {
+        sendMessages: allowSendMessages,
+        addMembers: allowAddMembers,
+      }
+      const result = await createGroup(groupName.trim(), unique, photoBase64, settings)
       setSuccess(true)
       setTimeout(() => onCreated(result.id), 1000)
     } catch (err) {
@@ -245,6 +251,41 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
             />
             <span className="hint">Include country code (e.g. +1 for US).</span>
           </label>
+
+          <div className="group-settings-section">
+            <div className="group-settings-header">Group Settings</div>
+            <label className="toggle-row">
+              <span className="toggle-label">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                Allow members to send messages
+              </span>
+              <div
+                className={`toggle-switch ${allowSendMessages ? 'active' : ''}`}
+                onClick={() => !creating && !success && setAllowSendMessages(!allowSendMessages)}
+              >
+                <div className="toggle-knob" />
+              </div>
+            </label>
+            <label className="toggle-row">
+              <span className="toggle-label">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
+                  <line x1="20" y1="8" x2="20" y2="14" />
+                  <line x1="23" y1="11" x2="17" y2="11" />
+                </svg>
+                Allow members to add others
+              </span>
+              <div
+                className={`toggle-switch ${allowAddMembers ? 'active' : ''}`}
+                onClick={() => !creating && !success && setAllowAddMembers(!allowAddMembers)}
+              >
+                <div className="toggle-knob" />
+              </div>
+            </label>
+          </div>
 
           {error && <div className="status error">{error}</div>}
           {success && <div className="status success">Group created successfully!</div>}

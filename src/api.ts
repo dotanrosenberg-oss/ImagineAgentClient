@@ -233,10 +233,12 @@ export async function fetchParticipants(chatId: string): Promise<Participant[]> 
 export async function createGroup(
   name: string,
   participants: string[],
-  photo?: string
+  photo?: string,
+  settings?: { sendMessages: boolean; addMembers: boolean }
 ): Promise<GroupCreateResult> {
   const body: Record<string, unknown> = { name, participants }
   if (photo) body.photo = photo
+  if (settings) body.settings = settings
   return apiCall('api/groups/create', 'POST', body, 60000)
 }
 
