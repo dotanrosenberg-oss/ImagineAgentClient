@@ -176,12 +176,6 @@ export async function fetchWhatsAppMessages(chatId: string, limit: number = 200)
   return []
 }
 
-export function getMediaUrl(chatId: string, messageId: string): string {
-  const encodedChat = encodeURIComponent(chatId)
-  const encodedMsg = encodeURIComponent(messageId)
-  return `/api/chats/${encodedChat}/messages/${encodedMsg}/media`
-}
-
 export async function sendMessage(chatId: string, message: string): Promise<{ success: boolean }> {
   const p = chatPath(chatId)
   return apiCallWithFallback(
@@ -195,23 +189,62 @@ export async function sendMessage(chatId: string, message: string): Promise<{ su
 
 export async function sendMessageWithAttachment(
   chatId: string,
-  file: { data: string; filename: string; mimetype: string },
-  message?: string
+  file: File,
+  caption?: string
 ): Promise<{ success: boolean }> {
-  const p = chatPath(chatId)
-  const body: Record<string, unknown> = {
-    file: file.data,
-    filename: file.filename,
-    mimetype: file.mimetype,
+  const formData = new FormData()
+  formData.append('file', file)
+  if (caption && caption.trim()) formData.append('caption', caption.trim())
+
+  const encodedChat = encodeURIComponent(chatId)
+  const endpoints = [
+    `/api/chats/${encodedChat}/messages`,
+    `/api/customers/${encodedChat}/messages`,
+  ]
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 120000)
+
+  try {
+    for (const endpoint of endpoints) {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      })
+
+      if (response.status === 404 || response.status === 405) {
+        const contentType = response.headers.get('content-type') || ''
+        if (!contentType.includes('application/json')) continue
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Authentication failed. Check server API key.')
+      }
+      if (response.status === 503) {
+        throw new Error('Server is not connected to WhatsApp. Please wait and try again.')
+      }
+      if (!response.ok) {
+        const text = await response.text()
+        let msg = `Server error (${response.status})`
+        try {
+          const parsed = JSON.parse(text)
+          if (parsed.message) msg = parsed.message
+          else if (parsed.error) msg = parsed.error
+        } catch { /* ignore */ }
+        throw new Error(msg)
+      }
+      return response.json() as Promise<{ success: boolean }>
+    }
+    throw new Error('Endpoint not available')
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Upload timed out. The file may be too large or the server is busy.')
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
   }
-  if (message && message.trim()) body.message = message.trim()
-  return apiCallWithFallback(
-    `${p.v2}/messages`,
-    `${p.v1}/messages`,
-    'POST',
-    body,
-    120000
-  )
 }
 
 export async function editMessage(chatId: string, messageId: string, message: string): Promise<void> {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Chat, Message, HealthStatus, Participant } from './api'
-import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats, getMediaUrl } from './api'
+import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 
 interface Props {
@@ -156,17 +156,6 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
   }
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const result = reader.result as string
-        resolve(result.split(',')[1])
-      }
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-  }
 
   const handleAttachmentSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -192,10 +181,9 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
     try {
       if (attachmentFile) {
         setUploadProgress('Uploading...')
-        const base64 = await fileToBase64(attachmentFile)
         await sendMessageWithAttachment(
           selectedChat.id,
-          { data: base64, filename: attachmentFile.name, mimetype: attachmentFile.type || 'application/octet-stream' },
+          attachmentFile,
           newMessage
         )
         setAttachmentFile(null)
@@ -516,70 +504,67 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
                       {msg.fromName && !msg.isFromMe && (
                         <span className="message-author">{msg.fromName}</span>
                       )}
-                      {msg.hasMedia && selectedChat && (() => {
+                      {msg.hasMedia && (() => {
                         const mt = (msg.messageType || '').toLowerCase()
                         const isImage = mt.startsWith('image') || mt === 'sticker' || mt === 'stickermessage' || mt === 'imagemessage'
                         const isVideo = mt.startsWith('video') || mt === 'videomessage' || mt === 'gif'
-                        const mediaSource = msg.mediaUrl || getMediaUrl(selectedChat.id, msg.id)
+                        const isAudio = mt.startsWith('audio') || mt === 'ptt'
+                        const isDocument = mt.startsWith('document') || mt === 'document'
+
+                        let icon: React.ReactNode
+                        let label: string
+
                         if (isImage) {
-                          return (
-                            <div className="media-content">
-                              <img
-                                src={mediaSource}
-                                alt={msg.body || 'Image'}
-                                className="media-image"
-                                loading="lazy"
-                                onClick={() => window.open(mediaSource, '_blank')}
-                                onError={(e) => {
-                                  const el = e.target as HTMLImageElement
-                                  el.style.display = 'none'
-                                  const fallback = el.nextElementSibling as HTMLElement
-                                  if (fallback) fallback.style.display = 'flex'
-                                }}
-                              />
-                              <span className="media-fallback" style={{ display: 'none' }}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                  <circle cx="8.5" cy="8.5" r="1.5" />
-                                  <polyline points="21 15 16 10 5 21" />
-                                </svg>
-                                Photo
-                              </span>
-                            </div>
+                          icon = (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                              <circle cx="8.5" cy="8.5" r="1.5" />
+                              <polyline points="21 15 16 10 5 21" />
+                            </svg>
                           )
-                        }
-                        if (isVideo) {
-                          return (
-                            <div className="media-content">
-                              <video
-                                src={mediaSource}
-                                controls
-                                className="media-video"
-                                preload="metadata"
-                                onError={(e) => {
-                                  const el = e.target as HTMLVideoElement
-                                  el.style.display = 'none'
-                                  const fallback = el.nextElementSibling as HTMLElement
-                                  if (fallback) fallback.style.display = 'flex'
-                                }}
-                              />
-                              <span className="media-fallback" style={{ display: 'none' }}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <polygon points="23 7 16 12 23 17 23 7" />
-                                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                                </svg>
-                                Video
-                              </span>
-                            </div>
+                          label = mt === 'sticker' || mt === 'stickermessage' ? 'Sticker' : 'Photo'
+                        } else if (isVideo) {
+                          icon = (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polygon points="23 7 16 12 23 17 23 7" />
+                              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                            </svg>
                           )
-                        }
-                        return (
-                          <a href={mediaSource} target="_blank" rel="noopener noreferrer" className="media-download-link">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          label = mt === 'gif' ? 'GIF' : 'Video'
+                        } else if (isAudio) {
+                          icon = (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                              <line x1="12" y1="19" x2="12" y2="23" />
+                              <line x1="8" y1="23" x2="16" y2="23" />
+                            </svg>
+                          )
+                          label = mt === 'ptt' ? 'Voice message' : 'Audio'
+                        } else if (isDocument) {
+                          icon = (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                              <line x1="16" y1="13" x2="8" y2="13" />
+                              <line x1="16" y1="17" x2="8" y2="17" />
+                            </svg>
+                          )
+                          label = 'Document'
+                        } else {
+                          icon = (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                             </svg>
-                            {msg.messageType || 'Attachment'}
-                          </a>
+                          )
+                          label = msg.messageType || 'Attachment'
+                        }
+
+                        return (
+                          <div className="media-placeholder">
+                            <span className="media-placeholder-icon">{icon}</span>
+                            <span className="media-placeholder-label">{label}</span>
+                          </div>
                         )
                       })()}
                       {msg.body && <p className="message-body">{msg.body}</p>}

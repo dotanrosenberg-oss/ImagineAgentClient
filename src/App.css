@@ -618,62 +618,41 @@ button.secondary {
   border-radius: 6px;
 }
 
-.media-content {
-  margin: 4px 0;
-  max-width: 320px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.media-image {
-  display: block;
-  max-width: 100%;
-  max-height: 300px;
-  border-radius: 8px;
-  cursor: pointer;
-  object-fit: contain;
-  background: #f0f0f0;
-}
-
-.media-image:hover {
-  opacity: 0.92;
-}
-
-.media-video {
-  display: block;
-  max-width: 100%;
-  max-height: 300px;
-  border-radius: 8px;
-  background: #000;
-}
-
-.media-fallback {
+.media-placeholder {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
+  gap: 8px;
+  padding: 10px 14px;
+  margin: 4px 0;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  min-width: 120px;
+}
+
+.sent .media-placeholder {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.media-placeholder-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.sent .media-placeholder-icon {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.media-placeholder-label {
+  font-size: 0.82rem;
   color: #6b7280;
   font-style: italic;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.04);
-  border-radius: 8px;
 }
 
-.media-download-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  color: #2563eb;
-  text-decoration: none;
-  padding: 6px 10px;
-  background: rgba(37, 99, 235, 0.08);
-  border-radius: 8px;
-  margin: 4px 0;
-}
-
-.media-download-link:hover {
-  background: rgba(37, 99, 235, 0.15);
+.sent .media-placeholder-label {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .message-time {
