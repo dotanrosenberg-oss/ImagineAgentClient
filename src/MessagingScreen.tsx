@@ -20,6 +20,7 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
   const [showActions, setShowActions] = useState(false)
   const [health, setHealth] = useState<HealthStatus | null>(null)
   const [syncing, setSyncing] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
 
@@ -226,12 +227,38 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
           </div>
         </div>
 
+        <div className="search-bar">
+          <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search chats..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="search-clear" onClick={() => setSearchQuery('')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+        </div>
+
         {syncing && <div className="loading-state">Syncing chats from WhatsApp...</div>}
         {loading && !syncing && <div className="loading-state">Loading chats...</div>}
         {chatError && <div className="error-state">{chatError}</div>}
 
         <div className="chat-list">
-          {chats.map((chat) => (
+          {chats.filter((chat) => {
+            if (!searchQuery.trim()) return true
+            const q = searchQuery.toLowerCase()
+            return chat.name?.toLowerCase().includes(q) || chat.lastMessage?.toLowerCase().includes(q)
+          }).map((chat) => (
             <button
               key={chat.id}
               className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
