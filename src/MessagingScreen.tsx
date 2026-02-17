@@ -32,8 +32,9 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [failedPics, setFailedPics] = useState<Set<string>>(new Set())
   const [showActionsPanel, setShowActionsPanel] = useState(false)
   const [showChatActionsPanel, setShowChatActionsPanel] = useState(false)
-  const [actionResult, setActionResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [actionResult, setActionResult] = useState<{ success: boolean; message: string; actionName: string; responseData?: Record<string, unknown> } | null>(null)
   const [executingAction, setExecutingAction] = useState(false)
+  const [executingActionName, setExecutingActionName] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -248,6 +249,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const handleExecuteAction = async (action: GroupAction, message: string, contextMessages: { id: string; body: string; timestamp: string; fromName?: string; isFromMe: boolean }[]) => {
     if (executingAction) return
     setExecutingAction(true)
+    setExecutingActionName(action.name)
     setActionResult(null)
     try {
       const descriptionParts: string[] = []
@@ -277,16 +279,16 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
 
       const result = await response.json()
       if (response.ok) {
-        setActionResult({ success: true, message: `"${action.name}" executed successfully` })
+        setActionResult({ success: true, message: `"${action.name}" executed successfully`, actionName: action.name, responseData: result })
       } else {
         const msg = result.message || result.error || `Error (${response.status})`
-        setActionResult({ success: false, message: msg })
+        setActionResult({ success: false, message: msg, actionName: action.name, responseData: result })
       }
     } catch (err) {
-      setActionResult({ success: false, message: err instanceof Error ? err.message : 'Failed to execute action' })
+      setActionResult({ success: false, message: err instanceof Error ? err.message : 'Failed to execute action', actionName: action.name })
     } finally {
       setExecutingAction(false)
-      setTimeout(() => setActionResult(null), 5000)
+      setExecutingActionName('')
     }
   }
 
@@ -566,20 +568,70 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               />
             )}
 
-            {actionResult && (
-              <div className={`action-result ${actionResult.success ? 'action-result-success' : 'action-result-error'}`}>
-                {actionResult.message}
-                <button className="action-result-close" onClick={() => setActionResult(null)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
+            {executingAction && (
+              <div className="action-executing">
+                <span className="action-executing-spinner" />
+                <span>Running "{executingActionName}"...</span>
               </div>
             )}
 
-            {executingAction && (
-              <div className="action-executing">Executing action...</div>
+            {actionResult && (
+              <div className={`action-response-panel ${actionResult.success ? 'action-response-success' : 'action-response-error'}`}>
+                <div className="action-response-header">
+                  <div className="action-response-status">
+                    {actionResult.success ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="15" y1="9" x2="9" y2="15" />
+                        <line x1="9" y1="9" x2="15" y2="15" />
+                      </svg>
+                    )}
+                    <span className="action-response-title">{actionResult.actionName}</span>
+                    <span className={`action-response-badge ${actionResult.success ? 'badge-success' : 'badge-error'}`}>
+                      {actionResult.success ? 'Success' : 'Failed'}
+                    </span>
+                  </div>
+                  <button className="action-result-close" onClick={() => setActionResult(null)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+                {actionResult.responseData && (
+                  <div className="action-response-body">
+                    {Object.entries(actionResult.responseData).map(([key, value]) => (
+                      <div key={key} className="action-response-field">
+                        <span className="action-response-key">{key}</span>
+                        <span className="action-response-value">
+                          {typeof value === 'object' && value !== null ? JSON.stringify(value, null, 2) : String(value ?? '')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!actionResult.responseData && !actionResult.success && (
+                  <div className="action-response-body">
+                    <div className="action-response-field">
+                      <span className="action-response-key">Error</span>
+                      <span className="action-response-value">{actionResult.message}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="action-response-note">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  This response is only visible to you
+                </div>
+              </div>
             )}
 
             <div className="messages-container">

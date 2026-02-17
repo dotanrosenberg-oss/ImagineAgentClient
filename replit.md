@@ -82,6 +82,9 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Action invoke view shows recent chat messages with checkboxes to include as context — selected messages are sent as description text in the API payload
 - Backend proxies the call to the external API (TaskFlow format: title, projectId, description, status, priority) with Bearer token auth
 - API key is sent via `Authorization: Bearer` header through server-side proxy (avoids CORS issues)
+- Action execution shows a spinner with the action name while processing
+- API response is displayed in a client-side panel (NOT sent to the group chat) with success/error badges, full response data fields, and a "This response is only visible to you" note
+- Response panel stays visible until manually closed by the user
 
 ## Chat Actions
 - **`src/groupActions.ts`**: Also provides async API client for chat actions with getChatActions/saveChatAction/deleteChatAction
@@ -90,6 +93,7 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Available in direct chats via "..." menu > "Chat Actions"
 
 ## Recent Changes
+- 2026-02-17: Action responses now displayed in client-side panel (not sent to group chat) with status indicators, spinner during execution, and full API response data
 - 2026-02-17: Migrated action storage from localStorage to PostgreSQL database with Express backend API on port 3001
 - 2026-02-17: Added Chat Actions for direct chats — configurable actions in Settings, execute-only panel in direct chat "..." menu. Replaced hardcoded "Create group with contact" button
 - 2026-02-17: Moved Group Actions management to dedicated Settings screen (gear icon in sidebar). Actions are now global (available in all groups). Group chat panel simplified to execute-only
