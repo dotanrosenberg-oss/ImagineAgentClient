@@ -59,7 +59,7 @@ export default function SettingsScreen({ onBack }: Props) {
   }
 
   const handleSave = async () => {
-    if (!formName.trim() || !formApiUrl.trim() || !formTarget) return
+    if (!formName.trim() || !formTarget) return
 
     const action: GroupAction = {
       id: editing ? editing.id : generateId(),
@@ -118,7 +118,7 @@ export default function SettingsScreen({ onBack }: Props) {
       </label>
 
       <label className="gap-label">
-        API URL
+        API URL <span style={{ color: '#b0b8c9', fontWeight: 400, fontSize: '12px' }}>(optional)</span>
         <input
           type="url"
           className="gap-input"
@@ -185,7 +185,7 @@ export default function SettingsScreen({ onBack }: Props) {
         <button
           className="gap-btn-primary"
           onClick={handleSave}
-          disabled={!formName.trim() || !formApiUrl.trim()}
+          disabled={!formName.trim()}
         >
           {editing ? 'Save Changes' : 'Create Action'}
         </button>
@@ -208,7 +208,7 @@ export default function SettingsScreen({ onBack }: Props) {
       ) : (
         <div className="settings-actions-list">
           {actions.map((action) => (
-            <div key={action.id} className="gap-action-card">
+            <div key={action.id} className={`gap-action-card ${!action.apiUrl?.trim() ? 'gap-action-no-url' : ''}`}>
               <div className="gap-action-main" onClick={() => openEditForm(action, target)} style={{ cursor: 'pointer' }}>
                 <div className="gap-action-icon">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -220,7 +220,7 @@ export default function SettingsScreen({ onBack }: Props) {
                   {action.description && (
                     <span className="gap-action-desc">{action.description}</span>
                   )}
-                  <span className="gap-action-url">{action.apiUrl}</span>
+                  <span className="gap-action-url">{action.apiUrl || 'No endpoint configured'}</span>
                 </div>
               </div>
               <div className="gap-action-controls">

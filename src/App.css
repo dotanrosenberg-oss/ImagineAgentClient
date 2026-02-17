@@ -1209,6 +1209,29 @@ button.secondary {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+.gap-action-disabled {
+  opacity: 0.5;
+  background: #f5f6f8;
+}
+
+.gap-action-disabled:hover {
+  box-shadow: none;
+}
+
+.group-actions-panel .gap-action-disabled .gap-action-main {
+  pointer-events: none;
+}
+
+.gap-action-no-endpoint {
+  font-size: 11px;
+  color: #b0b8c9;
+  font-style: italic;
+}
+
+.gap-action-no-url {
+  border-left: 3px solid #e0a800;
+}
+
 .gap-action-main {
   flex: 1;
   display: flex;

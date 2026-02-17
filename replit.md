@@ -93,6 +93,7 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Available in direct chats via "..." menu > "Chat Actions"
 
 ## Recent Changes
+- 2026-02-17: Actions can now be created without API endpoints — shown as disabled/greyed out in action menus, with yellow left border indicator in Settings
 - 2026-02-17: Action responses now displayed in client-side panel (not sent to group chat) with status indicators, spinner during execution, and full API response data
 - 2026-02-17: Migrated action storage from localStorage to PostgreSQL database with Express backend API on port 3001
 - 2026-02-17: Added Chat Actions for direct chats — configurable actions in Settings, execute-only panel in direct chat "..." menu. Replaced hardcoded "Create group with contact" button

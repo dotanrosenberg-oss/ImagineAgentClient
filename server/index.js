@@ -93,8 +93,8 @@ app.post('/local-api/actions/:type', async (req, res) => {
     return res.status(400).json({ error: 'Type must be group or chat' })
   }
   const { id, name, description, apiUrl, apiKey, apiDocUrl, projectId } = req.body
-  if (!id || !name || !apiUrl) {
-    return res.status(400).json({ error: 'id, name, and apiUrl are required' })
+  if (!id || !name) {
+    return res.status(400).json({ error: 'id and name are required' })
   }
   await pool.query(
     `INSERT INTO actions (id, type, name, description, api_url, api_key, api_doc_url, project_id)

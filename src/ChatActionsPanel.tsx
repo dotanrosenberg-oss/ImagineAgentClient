@@ -156,23 +156,37 @@ export default function ChatActionsPanel({ chatMessages, onClose, onExecuteActio
         </div>
       ) : (
         <div className="gap-list">
-          {actions.map((action) => (
-            <div key={action.id} className="gap-action-card">
-              <div className="gap-action-main" onClick={() => { setInvokeAction(action); setInvokeMessage(''); setSelectedMsgIds(new Set()) }}>
-                <div className="gap-action-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                  </svg>
-                </div>
-                <div className="gap-action-info">
-                  <span className="gap-action-name">{action.name}</span>
-                  {action.description && (
-                    <span className="gap-action-desc">{action.description}</span>
-                  )}
+          {actions.map((action) => {
+            const hasEndpoint = !!(action.apiUrl && action.apiUrl.trim())
+            return (
+              <div key={action.id} className={`gap-action-card ${!hasEndpoint ? 'gap-action-disabled' : ''}`}>
+                <div
+                  className="gap-action-main"
+                  onClick={() => {
+                    if (hasEndpoint) {
+                      setInvokeAction(action); setInvokeMessage(''); setSelectedMsgIds(new Set())
+                    }
+                  }}
+                  style={!hasEndpoint ? { cursor: 'default' } : undefined}
+                >
+                  <div className="gap-action-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                  </div>
+                  <div className="gap-action-info">
+                    <span className="gap-action-name">{action.name}</span>
+                    {action.description && (
+                      <span className="gap-action-desc">{action.description}</span>
+                    )}
+                    {!hasEndpoint && (
+                      <span className="gap-action-no-endpoint">No endpoint configured</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
