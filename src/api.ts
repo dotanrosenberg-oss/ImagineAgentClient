@@ -33,9 +33,10 @@ export interface HealthStatus {
 }
 
 export interface GroupCreateResult {
+  success: boolean
+  groupId: string
+  groupName: string
   id: string
-  name: string
-  participants: string[]
 }
 
 async function apiCall<T>(
@@ -254,11 +255,11 @@ export async function fetchParticipants(chatId: string): Promise<Participant[]> 
 export async function createGroup(
   name: string,
   participants: string[],
-  photo?: string,
-  settings?: { sendMessages: boolean; addMembers: boolean }
+  icon?: string,
+  settings?: { membersCanSendMessages: boolean; membersCanAddMembers: boolean }
 ): Promise<GroupCreateResult> {
   const body: Record<string, unknown> = { name, participants }
-  if (photo) body.photo = photo
+  if (icon) body.icon = icon
   if (settings) body.settings = settings
   return apiCall('api/groups/create', 'POST', body, 60000)
 }

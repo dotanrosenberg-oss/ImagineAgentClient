@@ -134,12 +134,12 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
       }
 
       const settings = {
-        sendMessages: allowSendMessages,
-        addMembers: allowAddMembers,
+        membersCanSendMessages: allowSendMessages,
+        membersCanAddMembers: allowAddMembers,
       }
       const result = await createGroup(groupName.trim(), unique, photoBase64, settings)
       setSuccess(true)
-      setTimeout(() => onCreated(result.id), 1000)
+      setTimeout(() => onCreated(result.groupId || result.id), 1000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create group')
     } finally {
