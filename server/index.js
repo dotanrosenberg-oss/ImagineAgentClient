@@ -76,6 +76,39 @@ app.delete('/local-api/actions/:type/:id', async (req, res) => {
   res.json({ ok: true })
 })
 
+app.post('/local-api/actions/execute', async (req, res) => {
+  const { actionId, payload } = req.body
+  if (!actionId) {
+    return res.status(400).json({ error: 'actionId is required' })
+  }
+  try {
+    const result = await pool.query('SELECT * FROM actions WHERE id = $1', [actionId])
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Action not found' })
+    }
+    const action = result.rows[0]
+    const headers = { 'Content-Type': 'application/json' }
+    if (action.api_key) {
+      headers['Authorization'] = `Bearer ${action.api_key}`
+      headers['x-api-key'] = action.api_key
+    }
+
+    const response = await fetch(action.api_url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    })
+
+    const text = await response.text()
+    let body
+    try { body = JSON.parse(text) } catch { body = { message: text } }
+
+    res.status(response.status).json(body)
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to execute action' })
+  }
+})
+
 const PORT = 3001
 initDb().then(() => {
   app.listen(PORT, '0.0.0.0', () => {

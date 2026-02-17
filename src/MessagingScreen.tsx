@@ -250,10 +250,6 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     setExecutingAction(true)
     setActionResult(null)
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (action.apiKey) headers['Authorization'] = `Bearer ${action.apiKey}`
-      if (action.apiKey) headers['x-api-key'] = action.apiKey
-
       const payload: Record<string, unknown> = {
         groupId: selectedChat?.id,
         groupName: selectedChat?.name,
@@ -262,22 +258,17 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       if (message) payload.message = message
       if (contextMessages.length > 0) payload.contextMessages = contextMessages
 
-      const response = await fetch(action.apiUrl, {
+      const response = await fetch('/local-api/actions/execute', {
         method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actionId: action.id, payload }),
       })
 
+      const result = await response.json()
       if (response.ok) {
         setActionResult({ success: true, message: `"${action.name}" executed successfully` })
       } else {
-        const text = await response.text()
-        let msg = `Error (${response.status})`
-        try {
-          const parsed = JSON.parse(text)
-          if (parsed.message) msg = parsed.message
-          else if (parsed.error) msg = parsed.error
-        } catch { /* ignore */ }
+        const msg = result.message || result.error || `Error (${response.status})`
         setActionResult({ success: false, message: msg })
       }
     } catch (err) {
