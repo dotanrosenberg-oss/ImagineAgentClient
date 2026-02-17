@@ -2,9 +2,113 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Chat, Message, HealthStatus } from './api'
 import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
-import GroupActionsPanel from './GroupActionsPanel'
-import ChatActionsPanel from './ChatActionsPanel'
 import type { GroupAction } from './groupActions'
+import { getActions, getChatActions } from './groupActions'
+
+interface ContextMessage {
+  id: string
+  body: string
+  timestamp: string
+  fromName?: string
+  isFromMe: boolean
+}
+
+function ActionInvokeBar({ action, chatMessages, onClose, onExecuteAction }: {
+  action: GroupAction
+  chatMessages: Message[]
+  onClose: () => void
+  onExecuteAction: (action: GroupAction, message: string, contextMessages: ContextMessage[]) => void
+}) {
+  const [invokeMessage, setInvokeMessage] = useState('')
+  const [selectedMsgIds, setSelectedMsgIds] = useState<Set<string>>(new Set())
+  const [expanded, setExpanded] = useState(false)
+
+  const recentMessages = chatMessages
+    .filter((m) => m.body && m.body.trim())
+    .slice(-30)
+
+  const toggleMsg = (msgId: string) => {
+    setSelectedMsgIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(msgId)) next.delete(msgId)
+      else next.add(msgId)
+      return next
+    })
+  }
+
+  const formatMsgTime = (ts: string | number) => {
+    const d = typeof ts === 'number' ? new Date(ts < 1e12 ? ts * 1000 : ts) : new Date(ts)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const handleRun = () => {
+    const selected = recentMessages
+      .filter((m) => selectedMsgIds.has(m.id))
+      .map((m) => ({
+        id: m.id,
+        body: m.body,
+        timestamp: m.timestamp,
+        fromName: m.fromName,
+        isFromMe: m.isFromMe,
+      }))
+    onExecuteAction(action, invokeMessage.trim(), selected)
+    onClose()
+  }
+
+  return (
+    <div className="action-invoke-bar">
+      <div className="action-invoke-bar-top">
+        <div className="action-invoke-bar-info">
+          <span className="action-invoke-bar-name">{action.name}</span>
+          {action.description && <span className="action-invoke-bar-desc">{action.description}</span>}
+        </div>
+        <button className="action-invoke-bar-close" onClick={onClose}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      {recentMessages.length > 0 && (
+        <div className="action-invoke-bar-context">
+          <button className="action-invoke-bar-toggle" onClick={() => setExpanded(!expanded)}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+              style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+            Attach messages {selectedMsgIds.size > 0 && <span className="action-invoke-bar-count">{selectedMsgIds.size}</span>}
+          </button>
+          {expanded && (
+            <div className="action-invoke-bar-msgs">
+              {recentMessages.map((msg) => (
+                <label key={msg.id} className={`action-invoke-bar-msg ${selectedMsgIds.has(msg.id) ? 'selected' : ''}`}>
+                  <input type="checkbox" checked={selectedMsgIds.has(msg.id)} onChange={() => toggleMsg(msg.id)} />
+                  <span className="action-invoke-bar-msg-author">{msg.isFromMe ? 'You' : (msg.fromName || '?')}</span>
+                  <span className="action-invoke-bar-msg-body">{msg.body.length > 60 ? msg.body.slice(0, 60) + '...' : msg.body}</span>
+                  <span className="action-invoke-bar-msg-time">{formatMsgTime(msg.timestamp)}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <div className="action-invoke-bar-bottom">
+        <input
+          type="text"
+          className="action-invoke-bar-input"
+          placeholder="Add a note (optional)..."
+          value={invokeMessage}
+          onChange={(e) => setInvokeMessage(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleRun() }
+          }}
+        />
+        <button className="action-invoke-bar-run" onClick={handleRun}>Run</button>
+      </div>
+    </div>
+  )
+}
 
 interface Props {
   onCreateGroup: () => void
@@ -21,7 +125,6 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [chatError, setChatError] = useState<string | null>(null)
   const [msgError, setMsgError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
-  const [showActions, setShowActions] = useState(false)
   const [health, setHealth] = useState<HealthStatus | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -30,9 +133,9 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [uploadProgress, setUploadProgress] = useState<string | null>(null)
   const [loadedPics, setLoadedPics] = useState<Set<string>>(new Set())
   const [failedPics, setFailedPics] = useState<Set<string>>(new Set())
-  const [showActionsPanel, setShowActionsPanel] = useState(false)
-  const [showChatActionsPanel, setShowChatActionsPanel] = useState(false)
   const [actionStatus, setActionStatus] = useState<{ actionName: string; request: string; state: 'waiting' | 'done' | 'error'; answer?: string } | null>(null)
+  const [availableActions, setAvailableActions] = useState<GroupAction[]>([])
+  const [selectedBarAction, setSelectedBarAction] = useState<GroupAction | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -137,12 +240,18 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
 
   const openChat = useCallback(async (chat: Chat) => {
     setSelectedChat(chat)
-    setShowActions(false)
-    setShowActionsPanel(false)
-    setShowChatActionsPanel(false)
     setActionStatus(null)
+    setSelectedBarAction(null)
     setLoadingMessages(true)
     setMsgError(null)
+
+    const isDirect = chat.type === 'direct' || chat.type === 'contact' || chat.id?.endsWith('@c.us')
+    try {
+      const acts = isDirect ? await getChatActions() : await getActions()
+      setAvailableActions(acts)
+    } catch {
+      setAvailableActions([])
+    }
     try {
       let data = await fetchMessages(chat.id)
       if (data.length === 0) {
@@ -532,63 +641,47 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               <div className="header-actions">
                 <button
                   className="icon-btn"
-                  onClick={() => setShowActions(!showActions)}
-                  title="More actions"
+                  onClick={() => openChat(selectedChat)}
+                  title="Refresh messages"
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="5" r="2" />
-                    <circle cx="12" cy="12" r="2" />
-                    <circle cx="12" cy="19" r="2" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" />
                   </svg>
                 </button>
               </div>
             </div>
 
-            {showActions && (
-              <div className="actions-dropdown">
-                <button className="action-item" onClick={() => { setShowActions(false); openChat(selectedChat) }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" />
-                  </svg>
-                  Refresh messages
-                </button>
-                {selectedChat.type === 'group' && (
-                  <button
-                    className="action-item"
-                    onClick={() => { setShowActions(false); setShowActionsPanel(true) }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                    </svg>
-                    Group Actions
-                  </button>
-                )}
-                {selectedChat.type !== 'group' && (
-                  <button
-                    className="action-item"
-                    onClick={() => { setShowActions(false); setShowChatActionsPanel(true) }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                    </svg>
-                    Chat Actions
-                  </button>
-                )}
+            {availableActions.length > 0 && (
+              <div className="action-bar">
+                {availableActions.map((action) => {
+                  const hasEndpoint = !!(action.apiUrl && action.apiUrl.trim())
+                  return (
+                    <button
+                      key={action.id}
+                      className={`action-bar-chip ${!hasEndpoint ? 'action-bar-chip-disabled' : ''} ${selectedBarAction?.id === action.id ? 'action-bar-chip-active' : ''}`}
+                      onClick={() => {
+                        if (hasEndpoint) {
+                          setSelectedBarAction(selectedBarAction?.id === action.id ? null : action)
+                        }
+                      }}
+                      disabled={!hasEndpoint}
+                      title={!hasEndpoint ? 'No endpoint configured' : action.description || action.name}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                      </svg>
+                      {action.name}
+                    </button>
+                  )
+                })}
               </div>
             )}
 
-            {showActionsPanel && selectedChat.type === 'group' && (
-              <GroupActionsPanel
+            {selectedBarAction && (
+              <ActionInvokeBar
+                action={selectedBarAction}
                 chatMessages={messages}
-                onClose={() => setShowActionsPanel(false)}
-                onExecuteAction={handleExecuteAction}
-              />
-            )}
-
-            {showChatActionsPanel && selectedChat.type !== 'group' && (
-              <ChatActionsPanel
-                chatMessages={messages}
-                onClose={() => setShowChatActionsPanel(false)}
+                onClose={() => setSelectedBarAction(null)}
                 onExecuteAction={handleExecuteAction}
               />
             )}

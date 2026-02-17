@@ -73,27 +73,22 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 ## Deployment
 - Autoscale deployment: builds with `npm run build`, runs Express backend + Vite preview
 
-## Group Actions
-- **`src/groupActions.ts`**: Data model and API client for global group actions (stored in PostgreSQL). Each action has: id, name, description, apiUrl, apiKey, apiDocUrl, projectId
-- **`src/SettingsScreen.tsx`**: Full CRUD UI for managing group actions (create, edit, delete). Accessible via gear icon in sidebar header
-- **`src/GroupActionsPanel.tsx`**: Simplified execute-only panel for group chats — lists available actions, invoke flow with context message selection
-- Actions are stored in PostgreSQL database (available in all group chats)
-- Executing an action opens a confirmation view where you can attach an optional message, then sends a POST request to the backend execute proxy
-- Action invoke view shows recent chat messages with checkboxes to include as context — selected messages are sent as description text in the API payload
+## Actions
+- **`src/groupActions.ts`**: Data model and API client for actions (stored in PostgreSQL). Each action has: id, name, description, apiUrl (optional), apiKey, apiDocUrl, projectId
+- **`src/SettingsScreen.tsx`**: Full CRUD UI for managing group and chat actions (create, edit, delete). Accessible via gear icon in sidebar header
+- **Action Bar**: Actions appear as clickable chips at the top of the chat panel (below the header) — always visible when a chat is opened
+  - Group chats show group actions, direct chats show chat actions
+  - Actions without an API endpoint appear greyed out / disabled
+  - Clicking a chip opens an inline invoke panel with optional note and message context selection
+- **`src/GroupActionsPanel.tsx`** / **`src/ChatActionsPanel.tsx`**: Legacy panels (no longer used in main UI, replaced by inline ActionInvokeBar in MessagingScreen)
+- Actions are stored in PostgreSQL database
 - Backend proxies the call to the external API (TaskFlow format: title, projectId, description, status, priority) with Bearer token auth
-- API key is sent via `Authorization: Bearer` header through server-side proxy (avoids CORS issues)
-- Action execution shows a spinner with the action name while processing
-- API response is displayed in a client-side panel (NOT sent to the group chat) with success/error badges, full response data fields, and a "This response is only visible to you" note
-- Response panel stays visible until manually closed by the user
-
-## Chat Actions
-- **`src/groupActions.ts`**: Also provides async API client for chat actions with getChatActions/saveChatAction/deleteChatAction
-- **`src/SettingsScreen.tsx`**: Chat Actions section (above Group Actions) with same CRUD interface
-- **`src/ChatActionsPanel.tsx`**: Execute-only panel for direct (1-on-1) chats — same pattern as GroupActionsPanel with context message selection
-- Available in direct chats via "..." menu > "Chat Actions"
+- API response is displayed as an inline chat bubble (NOT sent to the group/chat) with success/error indicators
+- Response bubble stays visible until manually closed by the user
 
 ## Recent Changes
-- 2026-02-17: Actions can now be created without API endpoints — shown as disabled/greyed out in action menus, with yellow left border indicator in Settings
+- 2026-02-17: Redesigned actions UX — actions now appear as a chip bar at the top of every chat (group and direct), replacing the hidden "..." dropdown menu. Inline invoke panel with note + context selection
+- 2026-02-17: Actions can now be created without API endpoints — shown as disabled/greyed out in action bar, with yellow left border indicator in Settings
 - 2026-02-17: Action responses now displayed in client-side panel (not sent to group chat) with status indicators, spinner during execution, and full API response data
 - 2026-02-17: Migrated action storage from localStorage to PostgreSQL database with Express backend API on port 3001
 - 2026-02-17: Added Chat Actions for direct chats — configurable actions in Settings, execute-only panel in direct chat "..." menu. Replaced hardcoded "Create group with contact" button
