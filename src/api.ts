@@ -161,12 +161,15 @@ export async function fetchMessages(chatId: string, limit: number = 50): Promise
 }
 
 export async function fetchWhatsAppMessages(chatId: string, limit: number = 200): Promise<Message[]> {
-  return apiCall<Message[]>(
+  const result = await apiCall<{ messages: Message[] } | Message[]>(
     `api/whatsapp/messages/${encodeURIComponent(chatId)}?limit=${limit}`,
     'GET',
     undefined,
     60000
   )
+  if (Array.isArray(result)) return result
+  if (result && Array.isArray(result.messages)) return result.messages
+  return []
 }
 
 export async function sendMessage(chatId: string, message: string): Promise<{ success: boolean }> {

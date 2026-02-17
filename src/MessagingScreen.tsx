@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Chat, Message, HealthStatus } from './api'
-import { fetchChats, fetchMessages, sendMessage, checkHealth, syncChats } from './api'
+import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, checkHealth, syncChats } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 
 interface Props {
@@ -126,7 +126,10 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
     setLoadingMessages(true)
     setMsgError(null)
     try {
-      const data = await fetchMessages(chat.id)
+      let data = await fetchMessages(chat.id)
+      if (data.length === 0) {
+        data = await fetchWhatsAppMessages(chat.id, 100)
+      }
       setMessages(data)
     } catch (err) {
       setMsgError(err instanceof Error ? err.message : 'Failed to load messages')
@@ -142,7 +145,10 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
     try {
       await sendMessage(selectedChat.id, newMessage.trim())
       setNewMessage('')
-      const data = await fetchMessages(selectedChat.id)
+      let data = await fetchMessages(selectedChat.id)
+      if (data.length === 0) {
+        data = await fetchWhatsAppMessages(selectedChat.id, 100)
+      }
       setMessages(data)
     } catch (err) {
       setMsgError(err instanceof Error ? err.message : 'Failed to send message')
