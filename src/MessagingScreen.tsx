@@ -25,6 +25,8 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
   const [filterUnread, setFilterUnread] = useState(false)
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState<string | null>(null)
+  const [loadedPics, setLoadedPics] = useState<Set<string>>(new Set())
+  const [failedPics, setFailedPics] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -105,6 +107,8 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
     try {
       const data = await fetchChats()
       setChats(data)
+      setFailedPics(new Set())
+      setLoadedPics(new Set())
     } catch (err) {
       setChatError(err instanceof Error ? err.message : 'Failed to load chats')
     } finally {
@@ -270,33 +274,39 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
     return clean.slice(0, 2).toUpperCase()
   }
 
+  const getProfilePicUrl = (chatId: string) => `/api/chats/${encodeURIComponent(chatId)}/profile-pic`
+
   const chatAvatar = (chat: Chat) => {
-    if (chat.profilePicUrl) {
-      return (
-        <>
+    const picUrl = chat.profilePicUrl || getProfilePicUrl(chat.id)
+    const hasFailed = failedPics.has(chat.id)
+    const hasLoaded = loadedPics.has(chat.id)
+
+    return (
+      <>
+        <span
+          className="chat-avatar-initials"
+          style={{
+            background: getAvatarColor(chat.id),
+            display: hasLoaded ? 'none' : 'flex',
+          }}
+        >
+          {getInitials(chat.name)}
+        </span>
+        {!hasFailed && (
           <img
-            src={chat.profilePicUrl}
+            src={picUrl}
             alt=""
             className="chat-avatar-img"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none'
-              const parent = (e.target as HTMLImageElement).parentElement
-              if (parent) {
-                const fb = parent.querySelector('.chat-avatar-fallback') as HTMLElement
-                if (fb) fb.style.display = 'flex'
-              }
+            style={{ display: hasLoaded ? 'block' : 'none' }}
+            onLoad={() => {
+              setLoadedPics(prev => new Set(prev).add(chat.id))
+            }}
+            onError={() => {
+              setFailedPics(prev => new Set(prev).add(chat.id))
             }}
           />
-          <span className="chat-avatar-fallback" style={{ background: getAvatarColor(chat.id) }}>
-            {getInitials(chat.name)}
-          </span>
-        </>
-      )
-    }
-    return (
-      <span className="chat-avatar-initials" style={{ background: getAvatarColor(chat.id) }}>
-        {getInitials(chat.name)}
-      </span>
+        )}
+      </>
     )
   }
 
