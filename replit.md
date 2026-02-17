@@ -10,8 +10,9 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - **Main Component**: `src/App.tsx` — handles screen navigation
 
 ## Screens
-- **MessagingScreen** (`src/MessagingScreen.tsx`): Status bar + chat list sidebar (groups & direct chats) + message thread view + sync/create group actions
+- **MessagingScreen** (`src/MessagingScreen.tsx`): Status bar + chat list sidebar (groups & direct chats) + message thread view + sync/create group/settings actions
 - **CreateGroupScreen** (`src/CreateGroupScreen.tsx`): Form to create a WhatsApp group with phone number participants
+- **SettingsScreen** (`src/SettingsScreen.tsx`): Dedicated settings page with full CRUD for managing group actions (create, edit, delete). Accessible via gear icon in sidebar header
 
 ## API Layer
 - **`src/api.ts`**: Typed API service with v2/v1 endpoint fallback and timeout support per tier. Primary entity: **Chat** (replaces old "Customer" concept). Endpoints:
@@ -64,15 +65,17 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Static deployment using `dist` directory after `npm run build`
 
 ## Group Actions
-- **`src/groupActions.ts`**: Data model and localStorage persistence for group actions. Each action has: id, name, description, apiUrl, apiKey
-- **`src/GroupActionsPanel.tsx`**: Full CRUD UI for managing group actions (create, edit, delete). Accessible via the "..." menu on group chats
-- Actions are stored per-group in localStorage under `group_actions` key
+- **`src/groupActions.ts`**: Data model and localStorage persistence for global group actions. Each action has: id, name, description, apiUrl, apiKey
+- **`src/SettingsScreen.tsx`**: Full CRUD UI for managing group actions (create, edit, delete). Accessible via gear icon in sidebar header
+- **`src/GroupActionsPanel.tsx`**: Simplified execute-only panel for group chats — lists available actions, invoke flow with context message selection
+- Actions are stored globally in localStorage under `group_actions_global` key (available in all group chats)
 - Executing an action opens a confirmation view where you can attach an optional message, then sends a POST request with groupId, groupName, action name, and message in the body
 - Action invoke view shows recent chat messages with checkboxes to include as context — selected messages are sent as `contextMessages` array in the API payload
 - API key is sent via both `Authorization: Bearer` and `x-api-key` headers
 
 ## Recent Changes
-- 2026-02-17: Added Group Actions feature — configurable actions per group (Create Customer, Create Opportunity, Ask for Quote, etc.) with name, description, API URL, and API key. Full create/edit/delete management UI
+- 2026-02-17: Moved Group Actions management to dedicated Settings screen (gear icon in sidebar). Actions are now global (available in all groups). Group chat panel simplified to execute-only
+- 2026-02-17: Added Group Actions feature — configurable actions (Create Customer, Create Opportunity, Ask for Quote, etc.) with name, description, API URL, and API key
 - 2026-02-17: Fixed chat image issue — file attachments now use proper multipart/form-data upload; media messages show clean type-specific placeholders (Photo, Video, Audio, Document) since server has no media download endpoint
 - 2026-02-17: Fixed chat photos — colored initial-based avatars in chat list (with profile pic support when available), inline image/video display for media messages
 - 2026-02-17: Added file attachment support (up to 100 MB) for both direct chats and groups

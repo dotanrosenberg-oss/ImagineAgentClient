@@ -2,11 +2,13 @@ import { useState } from 'react'
 import './App.css'
 import MessagingScreen from './MessagingScreen'
 import CreateGroupScreen from './CreateGroupScreen'
+import SettingsScreen from './SettingsScreen'
 import type { Participant } from './api'
 
 type Screen =
   | { name: 'messaging' }
   | { name: 'createGroup'; prefillParticipants?: Participant[]; sourceGroupName?: string }
+  | { name: 'settings' }
 
 function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'messaging' })
@@ -19,6 +21,7 @@ function App() {
           onCreateGroupFromMembers={(participants, sourceGroupName) =>
             setScreen({ name: 'createGroup', prefillParticipants: participants, sourceGroupName })
           }
+          onSettings={() => setScreen({ name: 'settings' })}
         />
       )}
       {screen.name === 'createGroup' && (
@@ -28,6 +31,9 @@ function App() {
           prefillParticipants={screen.prefillParticipants}
           sourceGroupName={screen.sourceGroupName}
         />
+      )}
+      {screen.name === 'settings' && (
+        <SettingsScreen onBack={() => setScreen({ name: 'messaging' })} />
       )}
     </main>
   )

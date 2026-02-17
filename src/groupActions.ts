@@ -6,44 +6,52 @@ export interface GroupAction {
   apiKey: string
 }
 
-const STORAGE_KEY = 'group_actions'
+const STORAGE_KEY = 'group_actions_global'
 
-function getAllActions(): Record<string, GroupAction[]> {
+function loadActions(): GroupAction[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return {}
-    return JSON.parse(raw)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return parsed
+    if (typeof parsed === 'object' && parsed !== null) {
+      const all = Object.values(parsed).flat() as GroupAction[]
+      const seen = new Set<string>()
+      return all.filter((a) => {
+        const key = a.name + a.apiUrl
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+    }
+    return []
   } catch {
-    return {}
+    return []
   }
 }
 
-function saveAllActions(data: Record<string, GroupAction[]>): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+function persistActions(actions: GroupAction[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(actions))
 }
 
-export function getActionsForGroup(groupId: string): GroupAction[] {
-  const all = getAllActions()
-  return all[groupId] || []
+export function getActions(): GroupAction[] {
+  return loadActions()
 }
 
-export function saveAction(groupId: string, action: GroupAction): void {
-  const all = getAllActions()
-  if (!all[groupId]) all[groupId] = []
-  const idx = all[groupId].findIndex((a) => a.id === action.id)
+export function saveAction(action: GroupAction): void {
+  const actions = loadActions()
+  const idx = actions.findIndex((a) => a.id === action.id)
   if (idx >= 0) {
-    all[groupId][idx] = action
+    actions[idx] = action
   } else {
-    all[groupId].push(action)
+    actions.push(action)
   }
-  saveAllActions(all)
+  persistActions(actions)
 }
 
-export function deleteAction(groupId: string, actionId: string): void {
-  const all = getAllActions()
-  if (!all[groupId]) return
-  all[groupId] = all[groupId].filter((a) => a.id !== actionId)
-  saveAllActions(all)
+export function deleteAction(actionId: string): void {
+  const actions = loadActions().filter((a) => a.id !== actionId)
+  persistActions(actions)
 }
 
 export function generateId(): string {
