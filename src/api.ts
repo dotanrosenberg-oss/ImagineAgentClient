@@ -61,11 +61,11 @@ async function apiCall<T>(
     const response = await fetch(`/${endpoint}`, opts)
 
     if (response.status === 401 || response.status === 403) {
-      throw new Error('Authentication failed. Check server API key.')
+      throw new Error('Unable to authenticate. Please check your API key in Settings.')
     }
 
     if (response.status === 503) {
-      throw new Error('Server is not connected to WhatsApp. Please wait and try again.')
+      throw new Error('WhatsApp is temporarily unavailable. It may be reconnecting — try again in a moment.')
     }
 
     const contentType = response.headers.get('content-type') || ''
@@ -94,7 +94,7 @@ async function apiCall<T>(
     return response.json() as Promise<T>
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('Request timed out. The server may be busy.')
+      throw new Error('The request took too long. The server might be busy — please try again.')
     }
     throw err
   } finally {
@@ -219,10 +219,10 @@ export async function sendMessageWithAttachment(
       }
 
       if (response.status === 401 || response.status === 403) {
-        throw new Error('Authentication failed. Check server API key.')
+        throw new Error('Unable to authenticate. Please check your API key in Settings.')
       }
       if (response.status === 503) {
-        throw new Error('Server is not connected to WhatsApp. Please wait and try again.')
+        throw new Error('WhatsApp is temporarily unavailable. It may be reconnecting — try again in a moment.')
       }
       if (!response.ok) {
         const text = await response.text()
@@ -239,7 +239,7 @@ export async function sendMessageWithAttachment(
     throw new Error('Endpoint not available')
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('Upload timed out. The file may be too large or the server is busy.')
+      throw new Error('The upload took too long. Try a smaller file, or check your connection.')
     }
     throw err
   } finally {

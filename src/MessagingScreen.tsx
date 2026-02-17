@@ -123,6 +123,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [loading, setLoading] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
+  const [serverMissing, setServerMissing] = useState(false)
   const [msgError, setMsgError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [health, setHealth] = useState<HealthStatus | null>(null)
@@ -216,10 +217,16 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     try {
       const data = await fetchChats()
       setChats(data)
+      setServerMissing(false)
       setFailedPics(new Set())
       setLoadedPics(new Set())
-    } catch (err) {
-      setChatError(err instanceof Error ? err.message : 'Failed to load chats')
+    } catch (err: any) {
+      if (err?.endpointMissing) {
+        setServerMissing(true)
+        setChatError(null)
+      } else {
+        setChatError(err instanceof Error ? err.message : 'Unable to load your chats right now.')
+      }
     } finally {
       setLoading(false)
     }
@@ -232,7 +239,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       const data = await syncChats()
       setChats(data)
     } catch (err) {
-      setChatError(err instanceof Error ? err.message : 'Failed to sync')
+      setChatError(err instanceof Error ? err.message : 'Sync failed. Please try again.')
     } finally {
       setSyncing(false)
     }
@@ -259,7 +266,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       }
       setMessages(data)
     } catch (err) {
-      setMsgError(err instanceof Error ? err.message : 'Failed to load messages')
+      setMsgError(err instanceof Error ? err.message : 'Unable to load messages right now.')
       setMessages([])
     } finally {
       setLoadingMessages(false)
@@ -317,9 +324,9 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       }
       setMessages(data)
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Failed to send message'
+      const errMsg = err instanceof Error ? err.message : 'Something went wrong while sending your message.'
       if (errMsg.includes('413') || errMsg.toLowerCase().includes('too large') || errMsg.toLowerCase().includes('payload')) {
-        setMsgError('File is too large for the server. Try a smaller file.')
+        setMsgError('That file is too large for the server. Try sending a smaller one.')
       } else {
         setMsgError(errMsg)
       }
@@ -426,10 +433,11 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     }
   }
 
-  const statusColor = health?.whatsapp?.status === 'ready' ? '#22c55e' : '#ef4444'
+  const isConnected = health?.whatsapp?.status === 'ready'
+  const statusColor = isConnected ? '#22c55e' : health ? '#f59e0b' : serverMissing ? '#8a90a0' : '#8a90a0'
   const statusText = health
-    ? `${health.whatsapp.name} (${health.whatsapp.phoneNumber}) - ${health.whatsapp.status}`
-    : 'Connecting...'
+    ? `${health.whatsapp.name} (${health.whatsapp.phoneNumber}) - ${health.whatsapp.status === 'ready' ? 'Connected' : 'Reconnecting...'}`
+    : serverMissing ? 'Server not configured' : 'Connecting to server...'
 
   const isDirectChat = (chat: Chat) => chat.type === 'direct' || chat.type === 'contact' || chat.id?.endsWith('@c.us')
 
@@ -564,7 +572,30 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
 
         {syncing && <div className="loading-state">Syncing chats from WhatsApp...</div>}
         {loading && !syncing && <div className="loading-state">Loading chats...</div>}
-        {chatError && <div className="error-state">{chatError}</div>}
+        {chatError && (
+          <div className="error-state">{chatError}</div>
+        )}
+
+        {serverMissing && !loading && (
+          <div className="setup-prompt">
+            <div className="setup-prompt-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8a90a0" strokeWidth="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+            <h3 className="setup-prompt-title">Welcome to Imagine Agent</h3>
+            <p className="setup-prompt-text">
+              Connect your WhatsApp server to start chatting. Go to Settings to add your server URL and API key.
+            </p>
+            <button className="setup-prompt-btn" onClick={onSettings}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              Open Settings
+            </button>
+          </div>
+        )}
 
         <div className="chat-list">
           {chats
@@ -607,9 +638,9 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               </div>
             </button>
           ))}
-          {!loading && !syncing && chats.length === 0 && !chatError && (
+          {!loading && !syncing && chats.length === 0 && !chatError && !serverMissing && (
             <div className="empty-state">
-              <p>No chats found</p>
+              <p>No chats yet</p>
               <button className="sync-btn" onClick={handleSync}>
                 Sync from WhatsApp
               </button>
@@ -624,7 +655,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#b0b8c9" strokeWidth="1.5">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-            <p>Select a chat to view messages</p>
+            <p>{!serverMissing ? 'Select a chat to view messages' : 'Configure your server to get started'}</p>
           </div>
         ) : (
           <>

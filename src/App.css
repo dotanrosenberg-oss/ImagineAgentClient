@@ -817,6 +817,59 @@ button.secondary {
   font-size: 0.88rem;
 }
 
+.setup-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.setup-prompt-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setup-prompt-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1a1f36;
+  font-weight: 700;
+}
+
+.setup-prompt-text {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #6b7280;
+  line-height: 1.5;
+  max-width: 260px;
+}
+
+.setup-prompt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #eef2ff;
+  color: #1f6fff;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-top: 4px;
+  border: none;
+  cursor: pointer;
+}
+
+.setup-prompt-btn:hover {
+  background: #dde5ff;
+}
+
 .create-group-layout {
   width: 100%;
   min-height: 100vh;
