@@ -1530,22 +1530,26 @@ button.secondary {
   line-height: 1.4;
 }
 
-.action-response-panel {
+.action-status-panel {
   border-bottom: 1px solid #e5e8ef;
   background: white;
-  max-height: 350px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
-.action-response-success {
+.action-status-waiting {
+  border-left: 3px solid #f59e0b;
+}
+
+.action-status-done {
   border-left: 3px solid #22c55e;
 }
 
-.action-response-error {
+.action-status-error {
   border-left: 3px solid #ef4444;
 }
 
-.action-response-header {
+.action-status-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1554,27 +1558,13 @@ button.secondary {
   border-bottom: 1px solid #f0f2f5;
 }
 
-.action-response-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.action-response-success .action-response-status {
-  color: #16a34a;
-}
-
-.action-response-error .action-response-status {
-  color: #dc2626;
-}
-
-.action-response-title {
-  font-size: 0.9rem;
+.action-status-name {
+  font-size: 0.88rem;
   font-weight: 600;
   color: #1a1f36;
 }
 
-.action-result-close {
+.action-status-close {
   background: transparent;
   padding: 4px;
   border-radius: 4px;
@@ -1585,21 +1575,42 @@ button.secondary {
   color: #8a90a0;
 }
 
-.action-result-close:hover {
+.action-status-close:hover {
   background: #eef2f7;
   color: #1a1f36;
 }
 
-.action-response-answer {
+.action-status-request {
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: #2f3340;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f9fafb;
+}
+
+.action-status-waiting-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #f59e0b;
+}
+
+.action-status-answer {
   padding: 10px 14px;
   font-size: 0.88rem;
   color: #1a1f36;
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+  border-top: 1px solid #e5e8ef;
 }
 
-.action-response-note {
+.action-status-note {
   padding: 6px 14px;
   font-size: 0.72rem;
   color: #8a90a0;
@@ -1607,23 +1618,11 @@ button.secondary {
   border-top: 1px solid #f0f2f5;
 }
 
-.action-executing {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 10px 16px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #1f6fff;
-  background: #eef2ff;
-}
-
 .action-executing-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid #c7d4ff;
-  border-top-color: #1f6fff;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fde68a;
+  border-top-color: #f59e0b;
   border-radius: 50%;
   animation: action-spin 0.7s linear infinite;
 }

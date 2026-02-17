@@ -32,9 +32,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [failedPics, setFailedPics] = useState<Set<string>>(new Set())
   const [showActionsPanel, setShowActionsPanel] = useState(false)
   const [showChatActionsPanel, setShowChatActionsPanel] = useState(false)
-  const [actionResult, setActionResult] = useState<{ success: boolean; actionName: string; answer: string } | null>(null)
-  const [executingAction, setExecutingAction] = useState(false)
-  const [executingActionName, setExecutingActionName] = useState('')
+  const [actionStatus, setActionStatus] = useState<{ actionName: string; request: string; state: 'waiting' | 'done' | 'error'; answer?: string } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -142,7 +140,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     setShowActions(false)
     setShowActionsPanel(false)
     setShowChatActionsPanel(false)
-    setActionResult(null)
+    setActionStatus(null)
     setLoadingMessages(true)
     setMsgError(null)
     try {
@@ -247,10 +245,20 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   }
 
   const handleExecuteAction = async (action: GroupAction, message: string, contextMessages: { id: string; body: string; timestamp: string; fromName?: string; isFromMe: boolean }[]) => {
-    if (executingAction) return
-    setExecutingAction(true)
-    setExecutingActionName(action.name)
-    setActionResult(null)
+    if (actionStatus?.state === 'waiting') return
+
+    const requestParts: string[] = []
+    if (message) requestParts.push(message)
+    if (contextMessages.length > 0) {
+      contextMessages.forEach((m) => {
+        const author = m.isFromMe ? 'You' : (m.fromName || 'Unknown')
+        requestParts.push(`${author}: ${m.body}`)
+      })
+    }
+    const requestSummary = requestParts.join('\n') || action.name
+
+    setActionStatus({ actionName: action.name, request: requestSummary, state: 'waiting' })
+
     try {
       const descriptionParts: string[] = []
       if (message) descriptionParts.push(message)
@@ -280,7 +288,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       const result = await response.json()
       const extractAnswer = (data: Record<string, unknown>): string => {
         if (typeof data === 'string') return data
-        const textFields = ['message', 'answer', 'result', 'response', 'text', 'description', 'detail', 'details', 'body', 'content', 'summary', 'title', 'name', 'status', 'error']
+        const textFields = ['message', 'answer', 'result', 'response', 'text', 'description', 'detail', 'details', 'body', 'content', 'summary']
         const parts: string[] = []
         for (const key of textFields) {
           if (data[key] !== undefined && data[key] !== null) {
@@ -293,16 +301,13 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       }
 
       if (response.ok) {
-        setActionResult({ success: true, actionName: action.name, answer: extractAnswer(result) })
+        setActionStatus((prev) => prev ? { ...prev, state: 'done', answer: extractAnswer(result) } : prev)
       } else {
         const errMsg = result.message || result.error || `Error (${response.status})`
-        setActionResult({ success: false, actionName: action.name, answer: errMsg })
+        setActionStatus((prev) => prev ? { ...prev, state: 'error', answer: errMsg } : prev)
       }
     } catch (err) {
-      setActionResult({ success: false, actionName: action.name, answer: err instanceof Error ? err.message : 'Failed to execute action' })
-    } finally {
-      setExecutingAction(false)
-      setExecutingActionName('')
+      setActionStatus((prev) => prev ? { ...prev, state: 'error', answer: err instanceof Error ? err.message : 'Failed to execute action' } : prev)
     }
   }
 
@@ -582,40 +587,28 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               />
             )}
 
-            {executingAction && (
-              <div className="action-executing">
-                <span className="action-executing-spinner" />
-                <span>Running "{executingActionName}"...</span>
-              </div>
-            )}
-
-            {actionResult && (
-              <div className={`action-response-panel ${actionResult.success ? 'action-response-success' : 'action-response-error'}`}>
-                <div className="action-response-header">
-                  <div className="action-response-status">
-                    {actionResult.success ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                        <polyline points="22 4 12 14.01 9 11.01" />
-                      </svg>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="15" y1="9" x2="9" y2="15" />
-                        <line x1="9" y1="9" x2="15" y2="15" />
-                      </svg>
-                    )}
-                    <span className="action-response-title">{actionResult.actionName}</span>
-                  </div>
-                  <button className="action-result-close" onClick={() => setActionResult(null)}>
+            {actionStatus && (
+              <div className={`action-status-panel ${actionStatus.state === 'error' ? 'action-status-error' : actionStatus.state === 'done' ? 'action-status-done' : 'action-status-waiting'}`}>
+                <div className="action-status-header">
+                  <span className="action-status-name">{actionStatus.actionName}</span>
+                  <button className="action-status-close" onClick={() => setActionStatus(null)}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <line x1="18" y1="6" x2="6" y2="18" />
                       <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
                   </button>
                 </div>
-                <div className="action-response-answer">{actionResult.answer}</div>
-                <div className="action-response-note">Only visible to you</div>
+                <div className="action-status-request">{actionStatus.request}</div>
+                {actionStatus.state === 'waiting' && (
+                  <div className="action-status-waiting-row">
+                    <span className="action-executing-spinner" />
+                    <span>Waiting for answer...</span>
+                  </div>
+                )}
+                {actionStatus.state !== 'waiting' && actionStatus.answer && (
+                  <div className="action-status-answer">{actionStatus.answer}</div>
+                )}
+                <div className="action-status-note">Only visible to you</div>
               </div>
             )}
 
