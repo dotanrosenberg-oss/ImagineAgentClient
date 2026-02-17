@@ -23,8 +23,8 @@ export default function SettingsScreen({ onBack }: Props) {
   const [showApiKey, setShowApiKey] = useState(false)
 
   useEffect(() => {
-    setGroupActions(getActions())
-    setChatActions(getChatActions())
+    getActions().then(setGroupActions)
+    getChatActions().then(setChatActions)
   }, [])
 
   const resetForm = () => {
@@ -55,7 +55,7 @@ export default function SettingsScreen({ onBack }: Props) {
     setFormTarget(target)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formName.trim() || !formApiUrl.trim() || !formTarget) return
 
     const action: GroupAction = {
@@ -68,22 +68,22 @@ export default function SettingsScreen({ onBack }: Props) {
     }
 
     if (formTarget === 'group') {
-      saveAction(action)
-      setGroupActions(getActions())
+      await saveAction(action)
+      setGroupActions(await getActions())
     } else {
-      saveChatAction(action)
-      setChatActions(getChatActions())
+      await saveChatAction(action)
+      setChatActions(await getChatActions())
     }
     resetForm()
   }
 
-  const handleDelete = (actionId: string, target: 'group' | 'chat') => {
+  const handleDelete = async (actionId: string, target: 'group' | 'chat') => {
     if (target === 'group') {
-      deleteAction(actionId)
-      setGroupActions(getActions())
+      await deleteAction(actionId)
+      setGroupActions(await getActions())
     } else {
-      deleteChatAction(actionId)
-      setChatActions(getChatActions())
+      await deleteChatAction(actionId)
+      setChatActions(await getChatActions())
     }
     setConfirmDelete(null)
   }

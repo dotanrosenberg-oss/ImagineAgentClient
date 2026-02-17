@@ -24,7 +24,7 @@ export default function GroupActionsPanel({ chatMessages, onClose, onExecuteActi
   const [selectedMsgIds, setSelectedMsgIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    setActions(getActions())
+    getActions().then(setActions)
   }, [])
 
   const recentMessages = chatMessages

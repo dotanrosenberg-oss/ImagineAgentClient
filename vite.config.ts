@@ -20,8 +20,15 @@ function getServerConfig() {
 export default defineConfig(() => {
   const { serverUrl, apiKey } = getServerConfig()
 
-  const proxyConfig = serverUrl ? {
-    '/api': {
+  const proxyConfig: Record<string, any> = {
+    '/local-api': {
+      target: 'http://localhost:3001',
+      changeOrigin: true,
+    },
+  }
+
+  if (serverUrl) {
+    proxyConfig['/api'] = {
       target: serverUrl,
       changeOrigin: true,
       configure: (proxy: any) => {
@@ -31,8 +38,8 @@ export default defineConfig(() => {
           }
         })
       },
-    },
-    '/ws': {
+    }
+    proxyConfig['/ws'] = {
       target: serverUrl,
       ws: true,
       changeOrigin: true,
@@ -40,8 +47,8 @@ export default defineConfig(() => {
         const separator = path.includes('?') ? '&' : '?'
         return `${path}${separator}apiKey=${encodeURIComponent(apiKey)}`
       },
-    },
-  } : undefined
+    }
+  }
 
   return {
     plugins: [react()],

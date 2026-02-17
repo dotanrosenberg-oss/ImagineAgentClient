@@ -9,65 +9,46 @@ export interface GroupAction {
 
 export type ChatAction = GroupAction
 
-const GROUP_STORAGE_KEY = 'group_actions_global'
-const CHAT_STORAGE_KEY = 'chat_actions_global'
-
-function loadFromKey(key: string): GroupAction[] {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) return parsed
-    if (typeof parsed === 'object' && parsed !== null) {
-      const all = Object.values(parsed).flat() as GroupAction[]
-      const seen = new Set<string>()
-      return all.filter((a) => {
-        const k = a.name + a.apiUrl
-        if (seen.has(k)) return false
-        seen.add(k)
-        return true
-      })
-    }
-    return []
-  } catch {
-    return []
-  }
+async function fetchActions(type: 'group' | 'chat'): Promise<GroupAction[]> {
+  const res = await fetch(`/local-api/actions/${type}`)
+  if (!res.ok) return []
+  return res.json()
 }
 
-function persistToKey(key: string, actions: GroupAction[]): void {
-  localStorage.setItem(key, JSON.stringify(actions))
+async function upsertAction(type: 'group' | 'chat', action: GroupAction): Promise<void> {
+  await fetch(`/local-api/actions/${type}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(action),
+  })
 }
 
-export function getActions(): GroupAction[] {
-  return loadFromKey(GROUP_STORAGE_KEY)
+async function removeAction(type: 'group' | 'chat', actionId: string): Promise<void> {
+  await fetch(`/local-api/actions/${type}/${actionId}`, { method: 'DELETE' })
 }
 
-export function saveAction(action: GroupAction): void {
-  const actions = loadFromKey(GROUP_STORAGE_KEY)
-  const idx = actions.findIndex((a) => a.id === action.id)
-  if (idx >= 0) actions[idx] = action
-  else actions.push(action)
-  persistToKey(GROUP_STORAGE_KEY, actions)
+export async function getActions(): Promise<GroupAction[]> {
+  return fetchActions('group')
 }
 
-export function deleteAction(actionId: string): void {
-  persistToKey(GROUP_STORAGE_KEY, loadFromKey(GROUP_STORAGE_KEY).filter((a) => a.id !== actionId))
+export async function saveAction(action: GroupAction): Promise<void> {
+  return upsertAction('group', action)
 }
 
-export function getChatActions(): ChatAction[] {
-  return loadFromKey(CHAT_STORAGE_KEY)
+export async function deleteAction(actionId: string): Promise<void> {
+  return removeAction('group', actionId)
 }
 
-export function saveChatAction(action: ChatAction): void {
-  const actions = loadFromKey(CHAT_STORAGE_KEY)
-  const idx = actions.findIndex((a) => a.id === action.id)
-  if (idx >= 0) actions[idx] = action
-  else actions.push(action)
-  persistToKey(CHAT_STORAGE_KEY, actions)
+export async function getChatActions(): Promise<ChatAction[]> {
+  return fetchActions('chat')
 }
 
-export function deleteChatAction(actionId: string): void {
-  persistToKey(CHAT_STORAGE_KEY, loadFromKey(CHAT_STORAGE_KEY).filter((a) => a.id !== actionId))
+export async function saveChatAction(action: ChatAction): Promise<void> {
+  return upsertAction('chat', action)
+}
+
+export async function deleteChatAction(actionId: string): Promise<void> {
+  return removeAction('chat', actionId)
 }
 
 export function generateId(): string {

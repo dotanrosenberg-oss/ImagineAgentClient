@@ -61,25 +61,34 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Build: `npm run build`
 - Lint: `npm run lint`
 
+## Backend
+- **`server/index.js`**: Express server on port 3001 providing CRUD API for actions stored in PostgreSQL
+- **Database**: PostgreSQL `actions` table with columns: id, type (group/chat), name, description, api_url, api_key, api_doc_url, created_at, updated_at
+- **Endpoints**:
+  - `GET /local-api/actions/:type` — list actions by type
+  - `POST /local-api/actions/:type` — create/update an action (upsert by id)
+  - `DELETE /local-api/actions/:type/:id` — delete an action
+
 ## Deployment
-- Static deployment using `dist` directory after `npm run build`
+- Autoscale deployment: builds with `npm run build`, runs Express backend + Vite preview
 
 ## Group Actions
-- **`src/groupActions.ts`**: Data model and localStorage persistence for global group actions. Each action has: id, name, description, apiUrl, apiKey, apiDocUrl
+- **`src/groupActions.ts`**: Data model and API client for global group actions (stored in PostgreSQL). Each action has: id, name, description, apiUrl, apiKey, apiDocUrl
 - **`src/SettingsScreen.tsx`**: Full CRUD UI for managing group actions (create, edit, delete). Accessible via gear icon in sidebar header
 - **`src/GroupActionsPanel.tsx`**: Simplified execute-only panel for group chats — lists available actions, invoke flow with context message selection
-- Actions are stored globally in localStorage under `group_actions_global` key (available in all group chats)
+- Actions are stored in PostgreSQL database (available in all group chats)
 - Executing an action opens a confirmation view where you can attach an optional message, then sends a POST request with groupId, groupName, action name, and message in the body
 - Action invoke view shows recent chat messages with checkboxes to include as context — selected messages are sent as `contextMessages` array in the API payload
 - API key is sent via both `Authorization: Bearer` and `x-api-key` headers
 
 ## Chat Actions
-- **`src/groupActions.ts`**: Also stores chat actions globally under `chat_actions_global` key with getChatActions/saveChatAction/deleteChatAction
+- **`src/groupActions.ts`**: Also provides async API client for chat actions with getChatActions/saveChatAction/deleteChatAction
 - **`src/SettingsScreen.tsx`**: Chat Actions section (above Group Actions) with same CRUD interface
 - **`src/ChatActionsPanel.tsx`**: Execute-only panel for direct (1-on-1) chats — same pattern as GroupActionsPanel with context message selection
 - Available in direct chats via "..." menu > "Chat Actions"
 
 ## Recent Changes
+- 2026-02-17: Migrated action storage from localStorage to PostgreSQL database with Express backend API on port 3001
 - 2026-02-17: Added Chat Actions for direct chats — configurable actions in Settings, execute-only panel in direct chat "..." menu. Replaced hardcoded "Create group with contact" button
 - 2026-02-17: Moved Group Actions management to dedicated Settings screen (gear icon in sidebar). Actions are now global (available in all groups). Group chat panel simplified to execute-only
 - 2026-02-17: Added Group Actions feature — configurable actions (Create Customer, Create Opportunity, Ask for Quote, etc.) with name, description, API URL, and API key
