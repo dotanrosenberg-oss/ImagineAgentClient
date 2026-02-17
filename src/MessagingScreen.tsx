@@ -593,31 +593,6 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               />
             )}
 
-            {actionStatus && (
-              <div className={`action-status-panel ${actionStatus.state === 'error' ? 'action-status-error' : actionStatus.state === 'done' ? 'action-status-done' : 'action-status-waiting'}`}>
-                <div className="action-status-header">
-                  <span className="action-status-name">{actionStatus.actionName}</span>
-                  <button className="action-status-close" onClick={() => setActionStatus(null)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="action-status-request">{actionStatus.request}</div>
-                {actionStatus.state === 'waiting' && (
-                  <div className="action-status-waiting-row">
-                    <span className="action-executing-spinner" />
-                    <span>Waiting for answer...</span>
-                  </div>
-                )}
-                {actionStatus.state !== 'waiting' && actionStatus.answer && (
-                  <div className="action-status-answer">{actionStatus.answer}</div>
-                )}
-                <div className="action-status-note">Only visible to you</div>
-              </div>
-            )}
-
             <div className="messages-container">
               {loadingMessages && <div className="loading-state">Loading messages...</div>}
               {msgError && <div className="error-state">{msgError}</div>}
@@ -706,6 +681,35 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                   </div>
                 )
               })}
+              {actionStatus && (
+                <div className="action-chat-bubble">
+                  <div className="action-bubble-header">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    <span className="action-bubble-name">{actionStatus.actionName}</span>
+                    <button className="action-bubble-close" onClick={() => setActionStatus(null)}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="action-bubble-request">{actionStatus.request}</div>
+                  {actionStatus.state === 'waiting' && (
+                    <div className="action-bubble-waiting">
+                      <span className="action-executing-spinner" />
+                      <span>Waiting for answer...</span>
+                    </div>
+                  )}
+                  {actionStatus.state !== 'waiting' && actionStatus.answer && (
+                    <div className={`action-bubble-answer ${actionStatus.state === 'error' ? 'action-bubble-answer-error' : ''}`}>
+                      {actionStatus.answer}
+                    </div>
+                  )}
+                  <div className="action-bubble-note">Only visible to you</div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
 
