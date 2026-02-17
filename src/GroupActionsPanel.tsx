@@ -5,7 +5,7 @@ import { getActionsForGroup, saveAction, deleteAction, generateId } from './grou
 interface Props {
   groupId: string
   onClose: () => void
-  onExecuteAction: (action: GroupAction) => void
+  onExecuteAction: (action: GroupAction, message: string) => void
 }
 
 export default function GroupActionsPanel({ groupId, onClose, onExecuteAction }: Props) {
@@ -13,6 +13,8 @@ export default function GroupActionsPanel({ groupId, onClose, onExecuteAction }:
   const [editing, setEditing] = useState<GroupAction | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [invokeAction, setInvokeAction] = useState<GroupAction | null>(null)
+  const [invokeMessage, setInvokeMessage] = useState('')
 
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
@@ -69,6 +71,49 @@ export default function GroupActionsPanel({ groupId, onClose, onExecuteAction }:
     deleteAction(groupId, actionId)
     setActions(getActionsForGroup(groupId))
     setConfirmDelete(null)
+  }
+
+  const handleInvoke = () => {
+    if (!invokeAction) return
+    onExecuteAction(invokeAction, invokeMessage.trim())
+    setInvokeAction(null)
+    setInvokeMessage('')
+  }
+
+  if (invokeAction) {
+    return (
+      <div className="group-actions-panel">
+        <div className="gap-header">
+          <button className="gap-back-btn" onClick={() => { setInvokeAction(null); setInvokeMessage('') }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h3>{invokeAction.name}</h3>
+        </div>
+        <div className="gap-invoke">
+          {invokeAction.description && (
+            <p className="gap-invoke-desc">{invokeAction.description}</p>
+          )}
+          <label className="gap-label">
+            Message (optional)
+            <textarea
+              className="gap-textarea"
+              placeholder="Add a message related to this action..."
+              value={invokeMessage}
+              onChange={(e) => setInvokeMessage(e.target.value)}
+              rows={3}
+            />
+          </label>
+          <div className="gap-form-actions">
+            <button className="gap-btn-secondary" onClick={() => { setInvokeAction(null); setInvokeMessage('') }}>Cancel</button>
+            <button className="gap-btn-primary" onClick={handleInvoke}>
+              Run Action
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (showForm) {
@@ -192,7 +237,7 @@ export default function GroupActionsPanel({ groupId, onClose, onExecuteAction }:
         <div className="gap-list">
           {actions.map((action) => (
             <div key={action.id} className="gap-action-card">
-              <div className="gap-action-main" onClick={() => onExecuteAction(action)}>
+              <div className="gap-action-main" onClick={() => { setInvokeAction(action); setInvokeMessage('') }}>
                 <div className="gap-action-icon">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />

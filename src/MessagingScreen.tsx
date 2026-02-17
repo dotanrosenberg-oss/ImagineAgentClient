@@ -242,7 +242,7 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
     return d.toLocaleDateString()
   }
 
-  const handleExecuteAction = async (action: GroupAction) => {
+  const handleExecuteAction = async (action: GroupAction, message: string) => {
     if (executingAction) return
     setExecutingAction(true)
     setActionResult(null)
@@ -251,14 +251,17 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
       if (action.apiKey) headers['Authorization'] = `Bearer ${action.apiKey}`
       if (action.apiKey) headers['x-api-key'] = action.apiKey
 
+      const payload: Record<string, unknown> = {
+        groupId: selectedChat?.id,
+        groupName: selectedChat?.name,
+        action: action.name,
+      }
+      if (message) payload.message = message
+
       const response = await fetch(action.apiUrl, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          groupId: selectedChat?.id,
-          groupName: selectedChat?.name,
-          action: action.name,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {

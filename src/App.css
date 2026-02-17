@@ -1410,6 +1410,23 @@ button.secondary {
   background: #dde1e8;
 }
 
+.gap-invoke {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gap-invoke-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+  background: #f4f6fb;
+  padding: 10px 14px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
 .action-result {
   display: flex;
   align-items: center;
