@@ -63,7 +63,15 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 ## Deployment
 - Static deployment using `dist` directory after `npm run build`
 
+## Group Actions
+- **`src/groupActions.ts`**: Data model and localStorage persistence for group actions. Each action has: id, name, description, apiUrl, apiKey
+- **`src/GroupActionsPanel.tsx`**: Full CRUD UI for managing group actions (create, edit, delete). Accessible via the "..." menu on group chats
+- Actions are stored per-group in localStorage under `group_actions` key
+- Executing an action sends a POST request to the configured API URL with groupId, groupName, and action name in the body
+- API key is sent via both `Authorization: Bearer` and `x-api-key` headers
+
 ## Recent Changes
+- 2026-02-17: Added Group Actions feature — configurable actions per group (Create Customer, Create Opportunity, Ask for Quote, etc.) with name, description, API URL, and API key. Full create/edit/delete management UI
 - 2026-02-17: Fixed chat image issue — file attachments now use proper multipart/form-data upload; media messages show clean type-specific placeholders (Photo, Video, Audio, Document) since server has no media download endpoint
 - 2026-02-17: Fixed chat photos — colored initial-based avatars in chat list (with profile pic support when available), inline image/video display for media messages
 - 2026-02-17: Added file attachment support (up to 100 MB) for both direct chats and groups

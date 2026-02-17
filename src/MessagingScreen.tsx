@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Chat, Message, HealthStatus, Participant } from './api'
 import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
+import GroupActionsPanel from './GroupActionsPanel'
+import type { GroupAction } from './groupActions'
 
 interface Props {
   onCreateGroup: () => void
@@ -27,6 +29,9 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
   const [uploadProgress, setUploadProgress] = useState<string | null>(null)
   const [loadedPics, setLoadedPics] = useState<Set<string>>(new Set())
   const [failedPics, setFailedPics] = useState<Set<string>>(new Set())
+  const [showActionsPanel, setShowActionsPanel] = useState(false)
+  const [actionResult, setActionResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [executingAction, setExecutingAction] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -132,6 +137,8 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
   const openChat = useCallback(async (chat: Chat) => {
     setSelectedChat(chat)
     setShowActions(false)
+    setShowActionsPanel(false)
+    setActionResult(null)
     setLoadingMessages(true)
     setMsgError(null)
     try {
@@ -233,6 +240,45 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
     yesterday.setDate(yesterday.getDate() - 1)
     if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
     return d.toLocaleDateString()
+  }
+
+  const handleExecuteAction = async (action: GroupAction) => {
+    if (executingAction) return
+    setExecutingAction(true)
+    setActionResult(null)
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (action.apiKey) headers['Authorization'] = `Bearer ${action.apiKey}`
+      if (action.apiKey) headers['x-api-key'] = action.apiKey
+
+      const response = await fetch(action.apiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          groupId: selectedChat?.id,
+          groupName: selectedChat?.name,
+          action: action.name,
+        }),
+      })
+
+      if (response.ok) {
+        setActionResult({ success: true, message: `"${action.name}" executed successfully` })
+      } else {
+        const text = await response.text()
+        let msg = `Error (${response.status})`
+        try {
+          const parsed = JSON.parse(text)
+          if (parsed.message) msg = parsed.message
+          else if (parsed.error) msg = parsed.error
+        } catch { /* ignore */ }
+        setActionResult({ success: false, message: msg })
+      }
+    } catch (err) {
+      setActionResult({ success: false, message: err instanceof Error ? err.message : 'Failed to execute action' })
+    } finally {
+      setExecutingAction(false)
+      setTimeout(() => setActionResult(null), 5000)
+    }
   }
 
   const statusColor = health?.whatsapp?.status === 'ready' ? '#22c55e' : '#ef4444'
@@ -459,6 +505,17 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
                   </svg>
                   Refresh messages
                 </button>
+                {selectedChat.type === 'group' && (
+                  <button
+                    className="action-item"
+                    onClick={() => { setShowActions(false); setShowActionsPanel(true) }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    Group Actions
+                  </button>
+                )}
                 {selectedChat.type !== 'group' && (
                   <button
                     className="action-item"
@@ -481,6 +538,30 @@ export default function MessagingScreen({ onCreateGroup, onCreateGroupFromMember
                   </button>
                 )}
               </div>
+            )}
+
+            {showActionsPanel && selectedChat.type === 'group' && (
+              <GroupActionsPanel
+                groupId={selectedChat.id}
+                onClose={() => setShowActionsPanel(false)}
+                onExecuteAction={handleExecuteAction}
+              />
+            )}
+
+            {actionResult && (
+              <div className={`action-result ${actionResult.success ? 'action-result-success' : 'action-result-error'}`}>
+                {actionResult.message}
+                <button className="action-result-close" onClick={() => setActionResult(null)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {executingAction && (
+              <div className="action-executing">Executing action...</div>
             )}
 
             <div className="messages-container">
