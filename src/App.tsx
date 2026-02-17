@@ -18,6 +18,8 @@ type WaMessage = {
   body: string
   timestamp?: string
   unread?: boolean
+  avatarUrl?: string
+  profilePicUrl?: string
 }
 
 type Settings = {
@@ -53,6 +55,7 @@ function App() {
   const [customerName, setCustomerName] = useState('')
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [creatingGroupFor, setCreatingGroupFor] = useState<string | null>(null)
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({})
 
   const saveSettings = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ serverUrl, apiKey }))
@@ -146,7 +149,28 @@ function App() {
               ? !m.isRead
               : undefined
 
-        return { id, senderId, senderName, body, timestamp, unread }
+        const avatarUrl =
+          String(
+            m.avatarUrl ??
+              m.imageUrl ??
+              m.chatImage ??
+              m.chatPhoto ??
+              m.picture ??
+              m.photo ??
+              '',
+          ).trim() || undefined
+
+        const profilePicUrl =
+          String(
+            m.profilePicUrl ??
+              m.profile_pic_url ??
+              m.contactPhoto ??
+              m.senderPhoto ??
+              m.contactImage ??
+              '',
+          ).trim() || undefined
+
+        return { id, senderId, senderName, body, timestamp, unread, avatarUrl, profilePicUrl }
       })
       .filter((m) => !!m.senderId)
   }
@@ -190,7 +214,10 @@ function App() {
     setResult({ type: 'loading', message: `Loading ${messageFilter} messages…` })
 
     try {
-      const query = messageFilter === 'unread' ? '?filter=unread&unread=true' : '?filter=all'
+      const query =
+        messageFilter === 'unread'
+          ? '?filter=unread&unread=true&includePhotos=true'
+          : '?filter=all&includePhotos=true'
       const response = await fetchJson(settings, `/api/messages${query}`, { method: 'GET' })
 
       if (response.status === 401 || response.status === 403) {
@@ -215,6 +242,15 @@ function App() {
     } finally {
       setLoadingMessages(false)
     }
+  }
+
+  const getInitials = (name: string) => {
+    const parts = name
+      .split(/\s+/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+    const initials = parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('')
+    return initials || '?'
   }
 
   const createGroupFromMessage = async (msg: WaMessage) => {
@@ -348,8 +384,26 @@ function App() {
               messages.map((msg) => (
                 <article key={msg.id} className="message-card">
                   <div className="message-head">
-                    <strong>{msg.senderName}</strong>
-                    <span className="muted small">{msg.senderId}</span>
+                    <div className="sender-avatar" aria-label={`Avatar for ${msg.senderName}`}>
+                      {!brokenImages[msg.id] && (msg.profilePicUrl || msg.avatarUrl) ? (
+                        <img
+                          src={msg.profilePicUrl || msg.avatarUrl}
+                          alt={msg.senderName}
+                          onError={() =>
+                            setBrokenImages((prev) => ({
+                              ...prev,
+                              [msg.id]: true,
+                            }))
+                          }
+                        />
+                      ) : (
+                        <span>{getInitials(msg.senderName)}</span>
+                      )}
+                    </div>
+                    <div className="sender-meta">
+                      <strong>{msg.senderName}</strong>
+                      <span className="muted small">{msg.senderId}</span>
+                    </div>
                   </div>
                   <p>{msg.body || '(no text)'}</p>
                   <button
