@@ -286,18 +286,24 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       })
 
       const result = await response.json()
-      const extractAnswer = (data: Record<string, unknown>): string => {
+      const extractAnswer = (data: unknown): string => {
         if (typeof data === 'string') return data
-        const textFields = ['message', 'answer', 'result', 'response', 'text', 'description', 'detail', 'details', 'body', 'content', 'summary']
-        const parts: string[] = []
-        for (const key of textFields) {
-          if (data[key] !== undefined && data[key] !== null) {
-            const val = data[key]
-            parts.push(typeof val === 'string' ? val : JSON.stringify(val))
-          }
+        if (!data || typeof data !== 'object') return String(data)
+        const obj = data as Record<string, unknown>
+        if (obj.message && typeof obj.message === 'string') return obj.message
+        if (obj.answer && typeof obj.answer === 'string') return obj.answer
+        if (obj.error && typeof obj.error === 'string') return obj.error
+        const id = (obj.task as Record<string, unknown>)?.id ?? obj.id
+        const title = (obj.task as Record<string, unknown>)?.title ?? obj.title
+        if (id || title) {
+          const parts: string[] = []
+          if (title) parts.push(String(title))
+          if (id) parts.push(`#${id}`)
+          const status = (obj.task as Record<string, unknown>)?.status ?? obj.status
+          if (status) parts.push(`(${String(status)})`)
+          return parts.join(' ')
         }
-        if (parts.length > 0) return parts.join('\n')
-        return JSON.stringify(data, null, 2)
+        return 'Done'
       }
 
       if (response.ok) {
