@@ -5,6 +5,7 @@ export interface Chat {
   lastMessage?: string
   lastMessageTime?: string
   phoneNumber?: string
+  unreadCount?: number
 }
 
 export interface Message {

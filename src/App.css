@@ -275,6 +275,46 @@ button.secondary {
   color: #1a1f36;
 }
 
+.filter-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e8ef;
+}
+
+.filter-chip {
+  background: #eef2f7;
+  color: #5e6470;
+  padding: 5px 14px;
+  border-radius: 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.filter-chip:hover {
+  background: #dde5ff;
+  color: #1f6fff;
+}
+
+.filter-chip.active {
+  background: #1f6fff;
+  color: white;
+}
+
+.chat-bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-bottom-row .chat-preview {
+  flex: 1;
+  min-width: 0;
+}
+
 .chat-list {
   flex: 1;
   overflow-y: auto;

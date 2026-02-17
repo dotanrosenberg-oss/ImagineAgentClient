@@ -21,6 +21,7 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
   const [health, setHealth] = useState<HealthStatus | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterUnread, setFilterUnread] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
 
@@ -255,16 +256,41 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
           )}
         </div>
 
+        <div className="filter-bar">
+          <button
+            className={`filter-chip ${!filterUnread ? 'active' : ''}`}
+            onClick={() => setFilterUnread(false)}
+          >
+            All
+          </button>
+          <button
+            className={`filter-chip ${filterUnread ? 'active' : ''}`}
+            onClick={() => setFilterUnread(true)}
+          >
+            Unread
+            {(() => { const count = chats.filter(c => (c.unreadCount || 0) > 0).length; return count > 0 ? ` (${count})` : '' })()}
+          </button>
+        </div>
+
         {syncing && <div className="loading-state">Syncing chats from WhatsApp...</div>}
         {loading && !syncing && <div className="loading-state">Loading chats...</div>}
         {chatError && <div className="error-state">{chatError}</div>}
 
         <div className="chat-list">
-          {chats.filter((chat) => {
-            if (!searchQuery.trim()) return true
-            const q = searchQuery.toLowerCase()
-            return chat.name?.toLowerCase().includes(q) || chat.lastMessage?.toLowerCase().includes(q)
-          }).map((chat) => (
+          {chats
+            .filter((chat) => {
+              if (filterUnread && !(chat.unreadCount && chat.unreadCount > 0)) return false
+              if (!searchQuery.trim()) return true
+              const q = searchQuery.toLowerCase()
+              return chat.name?.toLowerCase().includes(q) || chat.lastMessage?.toLowerCase().includes(q)
+            })
+            .sort((a, b) => {
+              if (!a.lastMessageTime && !b.lastMessageTime) return 0
+              if (!a.lastMessageTime) return 1
+              if (!b.lastMessageTime) return -1
+              return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
+            })
+            .map((chat) => (
             <button
               key={chat.id}
               className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
@@ -280,9 +306,14 @@ export default function MessagingScreen({ onCreateGroup }: Props) {
                     <span className="chat-time">{formatTime(chat.lastMessageTime)}</span>
                   )}
                 </div>
-                {chat.lastMessage && (
-                  <p className="chat-preview">{chat.lastMessage}</p>
-                )}
+                <div className="chat-bottom-row">
+                  {chat.lastMessage && (
+                    <p className="chat-preview">{chat.lastMessage}</p>
+                  )}
+                  {(chat.unreadCount ?? 0) > 0 && (
+                    <span className="unread-badge">{chat.unreadCount}</span>
+                  )}
+                </div>
               </div>
             </button>
           ))}
