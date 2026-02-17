@@ -14,7 +14,7 @@ async function initDb() {
       type TEXT NOT NULL CHECK (type IN ('group', 'chat')),
       name TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
-      api_url TEXT NOT NULL,
+      api_url TEXT DEFAULT '',
       api_key TEXT NOT NULL DEFAULT '',
       api_doc_url TEXT NOT NULL DEFAULT '',
       project_id INTEGER,
