@@ -232,9 +232,12 @@ export async function fetchParticipants(chatId: string): Promise<Participant[]> 
 
 export async function createGroup(
   name: string,
-  participants: string[]
+  participants: string[],
+  photo?: string
 ): Promise<GroupCreateResult> {
-  return apiCall('api/groups/create', 'POST', { name, participants }, 60000)
+  const body: Record<string, unknown> = { name, participants }
+  if (photo) body.photo = photo
+  return apiCall('api/groups/create', 'POST', body, 60000)
 }
 
 export async function checkNumber(phoneNumber: string): Promise<{ registered: boolean }> {

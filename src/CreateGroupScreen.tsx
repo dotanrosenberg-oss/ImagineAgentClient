@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { FormEvent } from 'react'
 import { createGroup } from './api'
 import type { Participant } from './api'
@@ -10,6 +10,21 @@ interface Props {
   sourceGroupName?: string
 }
 
+const DEFAULT_PHOTO = '/default-group-photo.png'
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      const base64 = result.split(',')[1]
+      resolve(base64)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 export default function CreateGroupScreen({ onBack, onCreated, prefillParticipants, sourceGroupName }: Props) {
   const [groupName, setGroupName] = useState('')
   const [manualParticipants, setManualParticipants] = useState('')
@@ -17,6 +32,10 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string>(DEFAULT_PHOTO)
+  const [useDefaultPhoto, setUseDefaultPhoto] = useState(true)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (prefillParticipants && prefillParticipants.length > 0) {
@@ -27,6 +46,31 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
       setSelectedMembers(selected)
     }
   }, [prefillParticipants])
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image must be smaller than 5MB')
+        return
+      }
+      setPhotoFile(file)
+      setUseDefaultPhoto(false)
+      const url = URL.createObjectURL(file)
+      setPhotoPreview(url)
+    }
+  }
+
+  const removePhoto = () => {
+    setPhotoFile(null)
+    setPhotoPreview(DEFAULT_PHOTO)
+    setUseDefaultPhoto(true)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   const toggleMember = (phone: string) => {
     setSelectedMembers((prev) => ({ ...prev, [phone]: !prev[phone] }))
@@ -77,7 +121,17 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     setCreating(true)
     setError(null)
     try {
-      const result = await createGroup(groupName.trim(), unique)
+      let photoBase64: string | undefined
+      if (photoFile) {
+        photoBase64 = await fileToBase64(photoFile)
+      } else if (useDefaultPhoto) {
+        const resp = await fetch(DEFAULT_PHOTO)
+        const blob = await resp.blob()
+        const defaultFile = new File([blob], 'default.png', { type: 'image/png' })
+        photoBase64 = await fileToBase64(defaultFile)
+      }
+
+      const result = await createGroup(groupName.trim(), unique, photoBase64)
       setSuccess(true)
       setTimeout(() => onCreated(result.id), 1000)
     } catch (err) {
@@ -108,6 +162,33 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
         )}
 
         <form onSubmit={handleSubmit} className="form">
+          <div className="photo-upload-section">
+            <div className="photo-preview-wrapper" onClick={() => !creating && !success && fileInputRef.current?.click()}>
+              <img src={photoPreview} alt="Group photo" className="photo-preview" />
+              <div className="photo-overlay">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </div>
+            </div>
+            <div className="photo-actions">
+              <span className="photo-label">{useDefaultPhoto ? 'Default photo' : photoFile?.name}</span>
+              {!useDefaultPhoto && (
+                <button type="button" className="text-btn" onClick={removePhoto} disabled={creating || success}>
+                  Reset to default
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              style={{ display: 'none' }}
+            />
+          </div>
+
           <label>
             Group Name
             <input
