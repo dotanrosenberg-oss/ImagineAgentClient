@@ -9,7 +9,8 @@ type WSEventHandler = (msg: WSMessage) => void
 let socket: WebSocket | null = null
 let handlers: WSEventHandler[] = []
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-let reconnectDelay = 1000
+let reconnectDelay = 2000
+let openedAt = 0
 
 export function connectWebSocket(): void {
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
@@ -22,8 +23,8 @@ export function connectWebSocket(): void {
   socket = new WebSocket(wsUrl)
 
   socket.onopen = () => {
+    openedAt = Date.now()
     console.log('[WS] Connected')
-    reconnectDelay = 1000
   }
 
   socket.onmessage = (event) => {
@@ -36,6 +37,12 @@ export function connectWebSocket(): void {
   }
 
   socket.onclose = () => {
+    const wasStable = openedAt > 0 && (Date.now() - openedAt) > 5000
+    if (wasStable) {
+      reconnectDelay = 2000
+    } else {
+      reconnectDelay = Math.min(reconnectDelay * 2, 30000)
+    }
     console.log('[WS] Disconnected, reconnecting...')
     scheduleReconnect()
   }
@@ -49,7 +56,6 @@ function scheduleReconnect() {
   if (reconnectTimer) return
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null
-    reconnectDelay = Math.min(reconnectDelay * 2, 30000)
     connectWebSocket()
   }, reconnectDelay)
 }

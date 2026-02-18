@@ -433,10 +433,11 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     }
   }
 
-  const isConnected = health?.whatsapp?.status === 'ready'
+  const isConnected = health?.whatsapp?.status === 'ready' || health?.whatsapp?.status === 'connected'
   const statusColor = isConnected ? '#22c55e' : health ? '#f59e0b' : serverMissing ? '#8a90a0' : '#8a90a0'
+  const nameInfo = [health?.whatsapp?.name, health?.whatsapp?.phoneNumber].filter(Boolean).join(' ')
   const statusText = health
-    ? `${health.whatsapp.name} (${health.whatsapp.phoneNumber}) - ${health.whatsapp.status === 'ready' ? 'Connected' : 'Reconnecting...'}`
+    ? `${nameInfo ? nameInfo + ' - ' : ''}${isConnected ? 'Connected' : 'Reconnecting...'}`
     : serverMissing ? 'Server not configured' : 'Connecting to server...'
 
   const isDirectChat = (chat: Chat) => chat.type === 'direct' || chat.type === 'contact' || chat.id?.endsWith('@c.us')

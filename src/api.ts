@@ -132,20 +132,68 @@ export async function checkStatus(): Promise<{ ready: boolean }> {
 }
 
 export async function checkHealth(): Promise<HealthStatus> {
-  return apiCall<HealthStatus>('api/health', 'GET', undefined, 5000)
+  try {
+    return await apiCall<HealthStatus>('api/health', 'GET', undefined, 5000)
+  } catch {
+    const status = await apiCall<any>('api/status', 'GET', undefined, 5000)
+    return {
+      status: status?.status || 'unknown',
+      whatsapp: {
+        status: status?.whatsapp?.state || status?.whatsapp?.status || 'unknown',
+        phoneNumber: status?.whatsapp?.phoneNumber || '',
+        name: status?.whatsapp?.name || '',
+      },
+      websocket: {
+        clients: status?.websocket?.activeClients ?? 0,
+      },
+    }
+  }
+}
+
+function normalizeChat(raw: any): Chat {
+  return {
+    id: raw.id,
+    name: raw.name || raw.id,
+    type: raw.type || (raw.isGroup ? 'group' : (raw.id?.endsWith('@c.us') ? 'contact' : (raw.id?.endsWith('@g.us') ? 'group' : 'contact'))),
+    lastMessage: raw.lastMessage,
+    lastMessageTime: raw.lastMessageTime || raw.lastMessageAt,
+    phoneNumber: raw.phoneNumber,
+    unreadCount: raw.unreadCount,
+    profilePicUrl: raw.profilePicUrl,
+  }
+}
+
+function normalizeMessage(raw: any): Message {
+  return {
+    id: raw.id,
+    body: raw.body || '',
+    timestamp: raw.timestamp,
+    isFromMe: raw.isFromMe ?? raw.id?.startsWith('true_') ?? false,
+    fromPhone: raw.fromPhone || raw.sender,
+    fromName: raw.fromName,
+    hasMedia: raw.hasMedia ?? (raw.type !== 'text' && raw.type !== 'chat'),
+    messageType: raw.messageType || raw.type || 'text',
+    chatId: raw.chatId,
+    mediaUrl: raw.mediaUrl,
+  }
 }
 
 export async function fetchChats(): Promise<Chat[]> {
-  return apiCallWithFallback<Chat[]>('api/chats', 'api/customers', 'GET', undefined, 10000)
+  const result = await apiCallWithFallback<any>('api/chats', 'api/customers', 'GET', undefined, 10000)
+  const list = Array.isArray(result) ? result : (result?.chats || [])
+  return list.map(normalizeChat)
 }
 
 export async function fetchChat(chatId: string): Promise<Chat> {
   const p = chatPath(chatId)
-  return apiCallWithFallback<Chat>(p.v2, p.v1, 'GET', undefined, 5000)
+  const result = await apiCallWithFallback<any>(p.v2, p.v1, 'GET', undefined, 5000)
+  return normalizeChat(result)
 }
 
 export async function syncChats(): Promise<Chat[]> {
-  return apiCallWithFallback<Chat[]>('api/chats/sync', 'api/customers/sync', 'POST', undefined, 60000)
+  const result = await apiCallWithFallback<any>('api/chats/sync', 'api/customers/sync', 'POST', undefined, 60000)
+  const list = Array.isArray(result) ? result : (result?.chats || [])
+  return list.map(normalizeChat)
 }
 
 export async function deleteChat(chatId: string): Promise<void> {
@@ -155,25 +203,26 @@ export async function deleteChat(chatId: string): Promise<void> {
 
 export async function fetchMessages(chatId: string, limit: number = 50): Promise<Message[]> {
   const p = chatPath(chatId)
-  return apiCallWithFallback<Message[]>(
+  const result = await apiCallWithFallback<any>(
     `${p.v2}/messages?limit=${limit}`,
     `${p.v1}/messages?limit=${limit}`,
     'GET',
     undefined,
     5000
   )
+  const list = Array.isArray(result) ? result : (result?.messages || [])
+  return list.map(normalizeMessage)
 }
 
 export async function fetchWhatsAppMessages(chatId: string, limit: number = 200): Promise<Message[]> {
-  const result = await apiCall<{ messages: Message[] } | Message[]>(
+  const result = await apiCall<any>(
     `api/whatsapp/messages/${encodeURIComponent(chatId)}?limit=${limit}`,
     'GET',
     undefined,
     60000
   )
-  if (Array.isArray(result)) return result
-  if (result && Array.isArray(result.messages)) return result.messages
-  return []
+  const list = Array.isArray(result) ? result : (result?.messages || [])
+  return list.map(normalizeMessage)
 }
 
 export async function sendMessage(chatId: string, message: string): Promise<{ success: boolean }> {

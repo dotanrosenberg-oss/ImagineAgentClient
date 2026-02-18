@@ -51,6 +51,10 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Client uses v2 endpoints (`/api/chats/*`) with automatic fallback to v1 (`/api/customers/*`)
 - Content-type checking prevents HTML fallback responses from being treated as JSON
 - Server currently uses `type: "contact"` (not `"direct"`) for 1-on-1 chats
+- **Response normalization**: API responses may be wrapped in objects (`{chats: [...]}`, `{messages: [...]}`) or returned as plain arrays — `normalizeChat()` and `normalizeMessage()` handle both formats
+- **Chat field mapping**: Server may return `isGroup` instead of `type`, `lastMessageAt` instead of `lastMessageTime`, `sender` instead of `fromPhone`
+- **Health endpoint**: Falls back from `/api/health` to `/api/status` — status uses `whatsapp.state` (e.g. "connected") instead of `whatsapp.status` ("ready")
+- **WebSocket reconnect**: Exponential backoff (2s → 30s max), resets only after 5+ seconds of stable connection
 
 ## Secrets
 - `WA_SERVER_URL` — WhatsApp server base URL
@@ -87,6 +91,7 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Response bubble stays visible until manually closed by the user
 
 ## Recent Changes
+- 2026-02-18: Added API response normalization for new server format — handles wrapped responses ({chats:[...]}, {messages:[...]}), field mapping (isGroup→type, lastMessageAt→lastMessageTime, sender→fromPhone), health endpoint fallback (/api/health → /api/status), and WebSocket exponential backoff
 - 2026-02-17: Redesigned actions UX — actions now appear as a chip bar at the top of every chat (group and direct), replacing the hidden "..." dropdown menu. Inline invoke panel with note + context selection
 - 2026-02-17: Actions can now be created without API endpoints — shown as disabled/greyed out in action bar, with yellow left border indicator in Settings
 - 2026-02-17: Action responses now displayed in client-side panel (not sent to group chat) with status indicators, spinner during execution, and full API response data
