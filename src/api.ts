@@ -61,7 +61,7 @@ async function apiCall<T>(
     const response = await fetch(`/${endpoint}`, opts)
 
     if (response.status === 401 || response.status === 403) {
-      throw new Error('Unable to authenticate. Please check your API key in Settings.')
+      throw new Error('Unable to authenticate. The API key may be incorrect for this server.')
     }
 
     if (response.status === 503) {
@@ -219,7 +219,7 @@ export async function sendMessageWithAttachment(
       }
 
       if (response.status === 401 || response.status === 403) {
-        throw new Error('Unable to authenticate. Please check your API key in Settings.')
+        throw new Error('Unable to authenticate. The API key may be incorrect for this server.')
       }
       if (response.status === 503) {
         throw new Error('WhatsApp is temporarily unavailable. It may be reconnecting — try again in a moment.')
