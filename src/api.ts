@@ -392,44 +392,11 @@ export async function fetchParticipants(chatId: string): Promise<Participant[]> 
 export async function createGroup(
   name: string,
   participants: string[],
-  iconFile?: File,
+  _iconFile?: File,
   settings?: { membersCanSendMessages: boolean; membersCanAddMembers: boolean }
 ): Promise<GroupCreateResult> {
-  const cleanParticipants = participants.map(p => p.replace(/^\+/, ''))
-
   const makeRequest = async (): Promise<GroupCreateResult> => {
-    if (iconFile) {
-      const formData = new FormData()
-      formData.append('name', name)
-      formData.append('participants', JSON.stringify(cleanParticipants))
-      if (settings) formData.append('settings', JSON.stringify(settings))
-      formData.append('icon', iconFile)
-
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 60000)
-      try {
-        const response = await fetch('/api/groups/create', {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal,
-        })
-        clearTimeout(timer)
-        if (!response.ok) {
-          const text = await response.text()
-          let msg = `Server error (${response.status})`
-          try {
-            const parsed = JSON.parse(text)
-            msg = extractErrorMessage(parsed, response.status)
-          } catch { /* ignore */ }
-          throw new Error(msg)
-        }
-        return await response.json()
-      } catch (err) {
-        clearTimeout(timer)
-        throw err
-      }
-    }
-    const body: Record<string, unknown> = { name, participants: cleanParticipants }
+    const body: Record<string, unknown> = { name, participants }
     if (settings) body.settings = settings
     return apiCall('api/groups/create', 'POST', body, 60000)
   }
