@@ -234,7 +234,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, chatTasks])
 
   const loadHealth = async () => {
     try {

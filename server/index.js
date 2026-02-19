@@ -156,7 +156,7 @@ app.get('/local-api/chat-tasks/:chatId', async (req, res) => {
   const { chatId } = req.params
   try {
     const result = await pool.query(
-      'SELECT * FROM chat_tasks WHERE chat_id = $1 ORDER BY created_at DESC',
+      'SELECT * FROM chat_tasks WHERE chat_id = $1 ORDER BY created_at ASC',
       [chatId]
     )
     res.json(result.rows.map(row => ({
@@ -215,7 +215,7 @@ app.post('/local-api/chat-tasks/:chatId/refresh', async (req, res) => {
     }
 
     const freshResult = await pool.query(
-      'SELECT * FROM chat_tasks WHERE chat_id = $1 ORDER BY created_at DESC',
+      'SELECT * FROM chat_tasks WHERE chat_id = $1 ORDER BY created_at ASC',
       [chatId]
     )
     res.json(freshResult.rows.map(row => ({
