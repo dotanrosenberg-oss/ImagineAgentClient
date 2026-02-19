@@ -53,6 +53,9 @@ function friendlyGroupError(rawMessage: string, participants: string[]): string 
   const lower = rawMessage.toLowerCase()
 
   if (lower.includes('validation_error') || lower.includes('validation error')) {
+    if (rawMessage.toLowerCase() !== 'validation_error' && rawMessage.toLowerCase() !== 'validation error') {
+      return `Couldn't create the group: ${rawMessage}`
+    }
     if (participants.length > 0) {
       const nums = participants.join(', ')
       return `Couldn't create the group. One or more phone numbers may be invalid or not on WhatsApp: ${nums}. Make sure numbers include the country code (e.g. +1 for US).`

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import type { FormEvent } from 'react'
 import { createGroup, fetchChat } from './api'
 import type { Participant, GroupCreateResult } from './api'
@@ -19,10 +19,13 @@ function formatPhone(raw: string): string {
 }
 
 export default function CreateGroupScreen({ onBack, onCreated, prefillParticipants: rawPrefill, sourceGroupName }: Props) {
-  const prefillParticipants = rawPrefill?.map(p => ({
-    ...p,
-    phone: formatPhone(p.phone),
-  }))
+  const prefillParticipants = useMemo(() =>
+    rawPrefill?.map(p => ({
+      ...p,
+      phone: formatPhone(p.phone),
+    })),
+    [rawPrefill]
+  )
   const [groupName, setGroupName] = useState('')
   const [manualParticipants, setManualParticipants] = useState('')
   const [selectedMembers, setSelectedMembers] = useState<Record<string, boolean>>({})
