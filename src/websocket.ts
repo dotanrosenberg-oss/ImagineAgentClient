@@ -1,5 +1,6 @@
 export interface WSMessage {
-  type: 'connected' | 'message' | 'message_edit' | 'message_delete' | 'chat_update' | 'chats_synced' | 'service_unavailable' | 'poll_vote'
+  type: 'connected' | 'message' | 'message_edit' | 'message_delete' | 'chat_update' | 'chats_synced' | 'service_unavailable' | 'poll_vote' | 'wa_state'
+  event?: string
   data: Record<string, unknown>
   chat?: { id: string; name: string }
 }
@@ -29,7 +30,8 @@ export function connectWebSocket(): void {
 
   socket.onmessage = (event) => {
     try {
-      const msg: WSMessage = JSON.parse(event.data)
+      const raw = JSON.parse(event.data)
+      const msg: WSMessage = { ...raw, type: raw.type || raw.event }
       handlers.forEach((h) => h(msg))
     } catch (err) {
       console.warn('[WS] Failed to parse message:', err)

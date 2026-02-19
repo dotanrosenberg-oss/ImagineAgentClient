@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Chat, Message, HealthStatus, Participant } from './api'
-import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats, friendlyErrorMessage } from './api'
+import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, sendPoll, checkHealth, syncChats, friendlyErrorMessage } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 import type { GroupAction } from './groupActions'
 import { getActions, getChatActions } from './groupActions'
@@ -137,6 +137,11 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [actionStatus, setActionStatus] = useState<{ actionName: string; request: string; state: 'waiting' | 'done' | 'error'; answer?: string } | null>(null)
   const [availableActions, setAvailableActions] = useState<GroupAction[]>([])
   const [selectedBarAction, setSelectedBarAction] = useState<GroupAction | null>(null)
+  const [showPollForm, setShowPollForm] = useState(false)
+  const [pollQuestion, setPollQuestion] = useState('')
+  const [pollOptions, setPollOptions] = useState(['', ''])
+  const [pollMultiSelect, setPollMultiSelect] = useState(false)
+  const [sendingPoll, setSendingPoll] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -185,6 +190,32 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
         )
       } else if (msg.type === 'chats_synced') {
         loadChats()
+      } else if (msg.type === 'message_edit' && msg.data) {
+        const editChatId = (msg.data.chatId || msg.chat?.id) as string
+        if (selectedChatRef.current?.id === editChatId) {
+          const edited = msg.data.message as Record<string, unknown> | undefined
+          if (edited) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === (edited.id as string)
+                  ? { ...m, body: (edited.body as string) || m.body, isEdited: true }
+                  : m
+              )
+            )
+          }
+        }
+      } else if (msg.type === 'message_delete' && msg.data) {
+        const delChatId = (msg.data.chatId || msg.chat?.id) as string
+        const delMsgId = msg.data.messageId as string
+        if (selectedChatRef.current?.id === delChatId && delMsgId) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === delMsgId
+                ? { ...m, isDeleted: true, body: '' }
+                : m
+            )
+          )
+        }
       } else if (msg.type === 'service_unavailable') {
         setHealth((prev) =>
           prev ? { ...prev, whatsapp: { ...prev.whatsapp, status: 'disconnected' } } : prev
@@ -298,6 +329,52 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const removeAttachment = () => {
     setAttachmentFile(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const resetPollForm = () => {
+    setShowPollForm(false)
+    setPollQuestion('')
+    setPollOptions(['', ''])
+    setPollMultiSelect(false)
+  }
+
+  const addPollOption = () => {
+    if (pollOptions.length < 12) {
+      setPollOptions([...pollOptions, ''])
+    }
+  }
+
+  const removePollOption = (index: number) => {
+    if (pollOptions.length > 2) {
+      setPollOptions(pollOptions.filter((_, i) => i !== index))
+    }
+  }
+
+  const updatePollOption = (index: number, value: string) => {
+    const updated = [...pollOptions]
+    updated[index] = value
+    setPollOptions(updated)
+  }
+
+  const handleSendPoll = async () => {
+    if (!selectedChat || sendingPoll) return
+    const trimmedQuestion = pollQuestion.trim()
+    const trimmedOptions = pollOptions.map(o => o.trim()).filter(o => o.length > 0)
+    if (!trimmedQuestion || trimmedOptions.length < 2) return
+
+    setSendingPoll(true)
+    setMsgError(null)
+    try {
+      await sendPoll(selectedChat.id, trimmedQuestion, trimmedOptions, pollMultiSelect)
+      resetPollForm()
+      const data = await fetchMessages(selectedChat.id)
+      setMessages(data)
+    } catch (err) {
+      const rawMsg = err instanceof Error ? err.message : 'Something went wrong while sending the poll.'
+      setMsgError(friendlyErrorMessage(rawMsg))
+    } finally {
+      setSendingPoll(false)
+    }
   }
 
   const handleSend = async () => {
@@ -781,11 +858,11 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                         <span>{formatDate(msg.timestamp)}</span>
                       </div>
                     )}
-                    <div className={`message-bubble ${msg.isFromMe ? 'sent' : 'received'}`}>
+                    <div className={`message-bubble ${msg.isFromMe ? 'sent' : 'received'}${msg.isDeleted ? ' deleted' : ''}`}>
                       {msg.fromName && !msg.isFromMe && (
                         <span className="message-author">{msg.fromName}</span>
                       )}
-                      {msg.hasMedia && (() => {
+                      {msg.hasMedia && !msg.isDeleted && (() => {
                         const mt = (msg.messageType || '').toLowerCase()
                         const isImage = mt.startsWith('image') || mt === 'sticker' || mt === 'stickermessage' || mt === 'imagemessage'
                         const isVideo = mt.startsWith('video') || mt === 'videomessage' || mt === 'gif'
@@ -848,8 +925,15 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                           </div>
                         )
                       })()}
-                      {msg.body && <p className="message-body">{msg.body}</p>}
-                      <span className="message-time">{formatTime(msg.timestamp)}</span>
+                      {msg.isDeleted ? (
+                        <p className="message-body message-deleted-text">This message was deleted</p>
+                      ) : (
+                        msg.body && <p className="message-body">{msg.body}</p>
+                      )}
+                      <span className="message-time">
+                        {formatTime(msg.timestamp)}
+                        {msg.isEdited && !msg.isDeleted && <span className="message-edited-badge"> edited</span>}
+                      </span>
                     </div>
                   </div>
                 )
@@ -887,6 +971,71 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
             </div>
 
             <div className="message-input-area">
+              {showPollForm && (
+                <div className="poll-form">
+                  <div className="poll-form-header">
+                    <span className="poll-form-title">Create Poll</span>
+                    <button className="poll-form-close" onClick={resetPollForm} disabled={sendingPoll}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    className="poll-question-input"
+                    placeholder="Ask a question..."
+                    value={pollQuestion}
+                    onChange={(e) => setPollQuestion(e.target.value)}
+                    maxLength={255}
+                    disabled={sendingPoll}
+                    autoFocus
+                  />
+                  <div className="poll-options-list">
+                    {pollOptions.map((opt, i) => (
+                      <div className="poll-option-row" key={i}>
+                        <input
+                          type="text"
+                          className="poll-option-input"
+                          placeholder={`Option ${i + 1}`}
+                          value={opt}
+                          onChange={(e) => updatePollOption(i, e.target.value)}
+                          maxLength={100}
+                          disabled={sendingPoll}
+                        />
+                        {pollOptions.length > 2 && (
+                          <button className="poll-option-remove" onClick={() => removePollOption(i)} disabled={sendingPoll}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {pollOptions.length < 12 && (
+                    <button className="poll-add-option-btn" onClick={addPollOption} disabled={sendingPoll}>
+                      + Add option
+                    </button>
+                  )}
+                  <label className="poll-multi-toggle">
+                    <input
+                      type="checkbox"
+                      checked={pollMultiSelect}
+                      onChange={(e) => setPollMultiSelect(e.target.checked)}
+                      disabled={sendingPoll}
+                    />
+                    Allow multiple answers
+                  </label>
+                  <button
+                    className="poll-send-btn"
+                    onClick={handleSendPoll}
+                    disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2 || sendingPoll}
+                  >
+                    {sendingPoll ? 'Sending...' : 'Send Poll'}
+                  </button>
+                </div>
+              )}
               {attachmentFile && (
                 <div className="attachment-preview">
                   <div className="attachment-icon">
@@ -925,6 +1074,18 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                </button>
+                <button
+                  className={`poll-btn ${showPollForm ? 'active' : ''}`}
+                  onClick={() => setShowPollForm(!showPollForm)}
+                  disabled={sending}
+                  title="Create poll"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="5" height="18" rx="1" />
+                    <rect x="10" y="8" width="5" height="13" rx="1" />
+                    <rect x="17" y="12" width="5" height="9" rx="1" />
                   </svg>
                 </button>
                 <input

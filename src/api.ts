@@ -20,6 +20,8 @@ export interface Message {
   messageType: string
   chatId?: string
   mediaUrl?: string
+  isEdited?: boolean
+  isDeleted?: boolean
 }
 
 export interface HealthStatus {
@@ -277,6 +279,8 @@ function normalizeMessage(raw: any): Message {
     body: raw.body || '',
     timestamp: raw.timestamp,
     isFromMe: raw.isFromMe ?? raw.id?.startsWith('true_') ?? false,
+    isEdited: raw.isEdited || false,
+    isDeleted: raw.isDeleted || false,
     fromPhone: raw.fromPhone || raw.sender,
     fromName: raw.fromName,
     hasMedia: raw.hasMedia ?? (raw.type !== 'text' && raw.type !== 'chat'),
@@ -343,12 +347,14 @@ export async function sendMessage(chatId: string, message: string): Promise<{ su
 export async function sendMessageWithAttachment(
   chatId: string,
   file: File,
-  caption?: string
+  caption?: string,
+  sendAsDocument?: boolean
 ): Promise<{ success: boolean }> {
   const formData = new FormData()
   formData.append('chatId', chatId)
   formData.append('file', file)
   if (caption && caption.trim()) formData.append('caption', caption.trim())
+  if (sendAsDocument) formData.append('sendAsDocument', 'true')
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 120000)
@@ -479,6 +485,15 @@ export async function setGroupImage(groupId: string, imageFile: File): Promise<{
   } finally {
     clearTimeout(timer)
   }
+}
+
+export async function sendPoll(
+  chatId: string,
+  question: string,
+  options: string[],
+  allowMultipleAnswers: boolean = false
+): Promise<{ success: boolean; messageId?: string }> {
+  return apiCall('api/messages/send-poll', 'POST', { chatId, question, options, allowMultipleAnswers }, 30000)
 }
 
 export async function checkNumber(phoneNumber: string): Promise<{ registered: boolean }> {

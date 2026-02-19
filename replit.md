@@ -26,12 +26,17 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
   - `DELETE /api/chats/:chatId/messages/:messageId` — delete a message
   - `GET /api/whatsapp/messages/:chatId?limit=N` — backfill history from WhatsApp
   - `POST /api/groups/create` — create a WhatsApp group
+  - `POST /api/messages/send-poll` — send a poll (question, options[], allowMultipleAnswers)
   - `POST /api/diagnostics/check-number` — check if phone is on WhatsApp
+  - `GET /api/chats/:chatId/profile-pic` — fetch fresh profile picture URL from WhatsApp
+  - `POST /api/groups/join-url` — generate group join/invite link
   - `GET /api/status` — server readiness check
   - `GET /api/health` — detailed health (WhatsApp status, phone, name)
 
-- **`src/websocket.ts`**: WebSocket client for real-time updates. Events:
+- **`src/websocket.ts`**: WebSocket client for real-time updates. Normalizes server `event` field to `type`. Events:
   - `message` — new incoming message
+  - `message_edit` — message was edited (updates body + isEdited flag in real-time)
+  - `message_delete` — message was deleted (marks as deleted in real-time)
   - `chat_update` — chat data changed
   - `chats_synced` — sync completed
   - `service_unavailable` — WhatsApp disconnected
@@ -91,8 +96,12 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Response bubble stays visible until manually closed by the user
 
 ## Recent Changes
+- 2026-02-19: Added Poll sending — poll composer UI in message input bar (question + 2-12 options + multi-select toggle), calls POST /api/messages/send-poll
+- 2026-02-19: Added sendAsDocument flag to media attachments — files can be sent as document attachments preserving original filename
+- 2026-02-19: Real-time message_edit and message_delete WebSocket handling — edited messages show "edited" badge, deleted messages show italic "This message was deleted"
+- 2026-02-19: Updated API endpoints to match server docs — invite link (POST /api/groups/join-url), profile pic (GET /api/chats/:chatId/profile-pic), sync returns {status, timestamp}, editMessage sends {body}
+- 2026-02-19: Group creation auto-closes and returns to chat list after success (removed success screen with invite link/QR)
 - 2026-02-19: Phone number validation before group creation — checks each number against WhatsApp (check-number endpoint) and shows warnings for unregistered numbers with option to remove or continue anyway
-- 2026-02-19: Invite link + QR code after group creation — fetches group invite link from server and displays it as a copyable link with a scannable QR code on the success screen
 - 2026-02-19: Added express group creation — "Create Now" button for one-click group creation with defaults when coming from a direct chat
 - 2026-02-19: Default group name auto-fills as "Imagine Travel - {contact name}" when creating from a direct chat
 - 2026-02-19: HEIC/HEIF image conversion — group photos are auto-converted to JPG using heic2any before upload
