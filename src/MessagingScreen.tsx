@@ -555,8 +555,8 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               requestSummary: requestSummary,
               response: responseText,
             }),
-          }).then(() => {
-            if (selectedChat) loadChatTasks(selectedChat.id)
+          }).then(async () => {
+            if (selectedChat) await loadChatTasks(selectedChat.id)
             setActionStatus(null)
           }).catch(() => {})
         }
