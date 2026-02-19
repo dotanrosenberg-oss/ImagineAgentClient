@@ -544,6 +544,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
             }),
           }).then(() => {
             if (selectedChat) loadChatTasks(selectedChat.id)
+            setActionStatus(null)
           }).catch(() => {})
         }
       } else {
