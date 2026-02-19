@@ -134,7 +134,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [uploadProgress, setUploadProgress] = useState<string | null>(null)
   const [loadedPics, setLoadedPics] = useState<Set<string>>(new Set())
   const [failedPics, setFailedPics] = useState<Set<string>>(new Set())
-  const [actionStatus, setActionStatus] = useState<{ actionName: string; request: string; state: 'waiting' | 'done' | 'error'; answer?: string } | null>(null)
+  const [actionStatus, setActionStatus] = useState<{ actionName: string; request: string; state: 'waiting' | 'done' | 'error'; answer?: string; timestamp: string } | null>(null)
   const [availableActions, setAvailableActions] = useState<GroupAction[]>([])
   const [selectedBarAction, setSelectedBarAction] = useState<GroupAction | null>(null)
   const [showPollForm, setShowPollForm] = useState(false)
@@ -447,7 +447,9 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     }
     const requestSummary = requestParts.join('\n') || action.name
 
-    setActionStatus({ actionName: action.name, request: requestSummary, state: 'waiting' })
+    const now = new Date()
+    const ts = now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+    setActionStatus({ actionName: action.name, request: requestSummary, state: 'waiting', timestamp: ts })
 
     try {
       const descriptionParts: string[] = []
@@ -460,6 +462,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
         })
       }
       descriptionParts.push(`\nChat: ${selectedChat ? displayName(selectedChat) : ''} (${selectedChat?.id || ''})`)
+      descriptionParts.push(`Timestamp: ${now.toISOString()}`)
 
       const payload: Record<string, unknown> = {
         title: `${action.name} - ${selectedChat ? displayName(selectedChat) : 'Unknown'}`,
@@ -964,7 +967,10 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                       {actionStatus.answer}
                     </div>
                   )}
-                  <div className="action-bubble-note">Only visible to you</div>
+                  <div className="action-bubble-footer">
+                    <span className="action-bubble-timestamp">{actionStatus.timestamp}</span>
+                    <span className="action-bubble-note">Only visible to you</span>
+                  </div>
                 </div>
               )}
               <div ref={messagesEndRef} />
