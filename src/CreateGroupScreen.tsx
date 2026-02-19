@@ -12,8 +12,17 @@ interface Props {
 
 const DEFAULT_PHOTO = '/default-group-photo.png'
 
+function formatPhone(raw: string): string {
+  let num = raw.replace(/@.*$/, '').replace(/[^+\d]/g, '')
+  if (!num.startsWith('+')) num = '+' + num
+  return num
+}
 
-export default function CreateGroupScreen({ onBack, onCreated, prefillParticipants, sourceGroupName }: Props) {
+export default function CreateGroupScreen({ onBack, onCreated, prefillParticipants: rawPrefill, sourceGroupName }: Props) {
+  const prefillParticipants = rawPrefill?.map(p => ({
+    ...p,
+    phone: formatPhone(p.phone),
+  }))
   const [groupName, setGroupName] = useState('')
   const [manualParticipants, setManualParticipants] = useState('')
   const [selectedMembers, setSelectedMembers] = useState<Record<string, boolean>>({})
@@ -94,11 +103,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     if (prefillParticipants) {
       phoneNumbers = prefillParticipants
         .filter((p) => selectedMembers[p.phone])
-        .map((p) => {
-          let num = p.phone.replace(/@.*$/, '').replace(/[^+\d]/g, '')
-          if (!num.startsWith('+')) num = '+' + num
-          return num
-        })
+        .map((p) => p.phone)
     }
 
     const manualNumbers = manualParticipants
