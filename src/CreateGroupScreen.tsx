@@ -148,8 +148,20 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     setSelectedMembers({})
   }
 
+  const getManualCount = () => {
+    return manualParticipants
+      .split(/[,;\n]+/)
+      .map((p) => p.trim().replace(/[^+\d]/g, ''))
+      .filter((p) => p.length > 1)
+      .length
+  }
+
   const getSelectedCount = () => {
     return Object.values(selectedMembers).filter(Boolean).length
+  }
+
+  const getTotalCount = () => {
+    return getSelectedCount() + getManualCount()
   }
 
   const handleSubmit = async (e?: FormEvent) => {
@@ -166,7 +178,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     }
 
     const manualNumbers = manualParticipants
-      .split(/[,\n]+/)
+      .split(/[,;\n]+/)
       .map((p) => {
         let num = p.trim().replace(/[^+\d]/g, '')
         if (!num) return ''
@@ -269,13 +281,13 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
             <div className="express-create-info">
               <span className="express-label">Quick create:</span>
               <strong>{defaultGroupName}</strong>
-              <span className="express-members">{getSelectedCount()} member{getSelectedCount() !== 1 ? 's' : ''}</span>
+              <span className="express-members">{getTotalCount()} member{getTotalCount() !== 1 ? 's' : ''}</span>
             </div>
             <button
               type="button"
               className="express-create-btn"
               onClick={() => handleSubmit()}
-              disabled={getSelectedCount() === 0}
+              disabled={getTotalCount() === 0}
             >
               Create Now
             </button>
@@ -446,9 +458,9 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
             <div className="actions">
               <button
                 type="submit"
-                disabled={(!groupName.trim() && !defaultGroupName) || (getSelectedCount() === 0 && !manualParticipants.trim()) || creating || success}
+                disabled={(!groupName.trim() && !defaultGroupName) || getTotalCount() === 0 || creating || success}
               >
-                {creating ? 'Creating...' : `Create Group${getSelectedCount() > 0 ? ` (${getSelectedCount()} members)` : ''}`}
+                {creating ? 'Creating...' : `Create Group${getTotalCount() > 0 ? ` (${getTotalCount()} members)` : ''}`}
               </button>
               <button type="button" className="secondary" onClick={onBack} disabled={creating}>
                 Cancel
