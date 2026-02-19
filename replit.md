@@ -91,6 +91,8 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Response bubble stays visible until manually closed by the user
 
 ## Recent Changes
+- 2026-02-19: Phone number validation before group creation — checks each number against WhatsApp (check-number endpoint) and shows warnings for unregistered numbers with option to remove or continue anyway
+- 2026-02-19: Invite link + QR code after group creation — fetches group invite link from server and displays it as a copyable link with a scannable QR code on the success screen
 - 2026-02-19: Added express group creation — "Create Now" button for one-click group creation with defaults when coming from a direct chat
 - 2026-02-19: Default group name auto-fills as "Imagine Travel - {contact name}" when creating from a direct chat
 - 2026-02-19: HEIC/HEIF image conversion — group photos are auto-converted to JPG using heic2any before upload
