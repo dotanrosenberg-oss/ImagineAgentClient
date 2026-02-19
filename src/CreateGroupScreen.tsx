@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { FormEvent } from 'react'
-import { createGroup, setGroupImage, fetchChat } from './api'
+import { createGroup, setGroupImage, fetchChat, friendlyErrorMessage } from './api'
 import type { Participant, GroupCreateResult } from './api'
 
 interface Props {
@@ -188,7 +188,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
       setCreating(false)
       setCreatingStatus(confirmed ? 'Group created and confirmed!' : 'Group created! It may take a moment to appear in your chat list.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create group')
+      setError(friendlyErrorMessage(err instanceof Error ? err.message : 'Failed to create group'))
       setCreating(false)
       setCreatingStatus('')
     }

@@ -56,6 +56,72 @@ function extractErrorMessage(parsed: Record<string, unknown>, status: number): s
   return `Server error (${status})`
 }
 
+export function friendlyErrorMessage(rawMessage: string): string {
+  const lower = rawMessage.toLowerCase()
+
+  if (lower.includes('detached frame') || lower.includes('detached') && lower.includes('frame')) {
+    return 'WhatsApp lost the connection while processing your request. This usually fixes itself — try again in a moment.'
+  }
+
+  if (lower.includes('protocol error') || lower.includes('protocolerrror') || lower.includes('target closed') || lower.includes('session closed')) {
+    return 'The connection to WhatsApp was interrupted. Please wait a moment and try again.'
+  }
+
+  if (lower.includes('execution context') || lower.includes('context was destroyed')) {
+    return 'WhatsApp was reloading while your request was being processed. Give it a few seconds and try again.'
+  }
+
+  if (lower.includes('econnrefused') || lower.includes('econnreset') || lower.includes('connection refused') || lower.includes('connection reset')) {
+    return 'Can\'t reach the WhatsApp server right now. It may be restarting — try again in a moment.'
+  }
+
+  if (lower.includes('enotfound') || lower.includes('dns') || lower.includes('getaddrinfo')) {
+    return 'Can\'t find the WhatsApp server. Please check the server address and your internet connection.'
+  }
+
+  if (lower.includes('timeout') || lower.includes('timed out') || lower.includes('aborted') || lower.includes('etimedout')) {
+    return 'The request took too long. WhatsApp may be busy — please try again in a moment.'
+  }
+
+  if (lower.includes('unauthorized') || lower.includes('403') || lower.includes('401') || (lower.includes('auth') && lower.includes('fail'))) {
+    return 'Unable to authenticate with the server. The API key may need to be updated.'
+  }
+
+  if (lower.includes('rate') || lower.includes('too many') || lower.includes('429')) {
+    return 'Too many requests — please wait a moment before trying again.'
+  }
+
+  if (lower.includes('503') || lower.includes('service unavailable') || lower.includes('temporarily unavailable')) {
+    return 'WhatsApp is temporarily unavailable. It may be reconnecting — try again in a moment.'
+  }
+
+  if (lower.includes('500') || lower.includes('internal server error') || lower.includes('internal error')) {
+    return 'The server ran into an unexpected problem. Please try again, and if it keeps happening, the server may need attention.'
+  }
+
+  if (lower.includes('socket hang up') || lower.includes('epipe') || lower.includes('broken pipe')) {
+    return 'The connection dropped while sending. Please try again.'
+  }
+
+  if (lower.includes('not found on whatsapp') || lower.includes('not registered') || lower.includes('invalid phone')) {
+    return 'This number doesn\'t appear to be on WhatsApp. Double-check the number and try again.'
+  }
+
+  if (lower.includes('413') || lower.includes('too large') || lower.includes('payload')) {
+    return 'That file is too large for the server. Try sending a smaller one.'
+  }
+
+  if (/^[a-f0-9]{10,}$/i.test(rawMessage.replace(/[^a-f0-9]/gi, '')) && rawMessage.length > 20) {
+    return 'Something went wrong on the server. Please try again.'
+  }
+
+  if (rawMessage.length > 200 || /[A-Z_]{3,}\.[A-Z_]{3,}|Error\(|at\s+\w+\.\w+|\/node_modules\//.test(rawMessage)) {
+    return 'Something went wrong on the server. Please try again.'
+  }
+
+  return rawMessage
+}
+
 function friendlyGroupError(rawMessage: string, participants: string[]): string {
   const lower = rawMessage.toLowerCase()
 
@@ -74,19 +140,7 @@ function friendlyGroupError(rawMessage: string, participants: string[]): string 
     return 'One or more participants could not be found on WhatsApp. Double-check the numbers and try again.'
   }
 
-  if (lower.includes('timeout') || lower.includes('timed out') || lower.includes('aborted')) {
-    return 'The request took too long. WhatsApp may be busy — please try again in a moment.'
-  }
-
-  if (lower.includes('unauthorized') || lower.includes('auth') || lower.includes('403') || lower.includes('401')) {
-    return 'Unable to authenticate with the server. The API key may need to be updated.'
-  }
-
-  if (lower.includes('rate') || lower.includes('too many')) {
-    return 'Too many requests — please wait a moment before trying again.'
-  }
-
-  return rawMessage
+  return friendlyErrorMessage(rawMessage)
 }
 
 async function apiCall<T>(
@@ -135,7 +189,7 @@ async function apiCall<T>(
         const parsed = JSON.parse(text)
         msg = extractErrorMessage(parsed, response.status)
       } catch { /* ignore */ }
-      throw new Error(msg)
+      throw new Error(friendlyErrorMessage(msg))
     }
 
     return response.json() as Promise<T>
@@ -309,7 +363,7 @@ export async function sendMessageWithAttachment(
         const parsed = JSON.parse(text)
         msg = extractErrorMessage(parsed, response.status)
       } catch { /* ignore */ }
-      throw new Error(msg)
+      throw new Error(friendlyErrorMessage(msg))
     }
     return response.json() as Promise<{ success: boolean }>
   } catch (err) {

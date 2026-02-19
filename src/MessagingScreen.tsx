@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Chat, Message, HealthStatus, Participant } from './api'
-import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats } from './api'
+import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats, friendlyErrorMessage } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 import type { GroupAction } from './groupActions'
 import { getActions, getChatActions } from './groupActions'
@@ -225,7 +225,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
         setServerMissing(true)
         setChatError(null)
       } else {
-        setChatError(err instanceof Error ? err.message : 'Unable to load your chats right now.')
+        setChatError(friendlyErrorMessage(err instanceof Error ? err.message : 'Unable to load your chats right now.'))
       }
     } finally {
       setLoading(false)
@@ -240,7 +240,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       const freshChats = await fetchChats()
       setChats(freshChats)
     } catch (err) {
-      setChatError(err instanceof Error ? err.message : 'Sync failed. Please try again.')
+      setChatError(friendlyErrorMessage(err instanceof Error ? err.message : 'Sync failed. Please try again.'))
     } finally {
       setSyncing(false)
     }
@@ -267,7 +267,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       }
       setMessages(data)
     } catch (err) {
-      setMsgError(err instanceof Error ? err.message : 'Unable to load messages right now.')
+      setMsgError(friendlyErrorMessage(err instanceof Error ? err.message : 'Unable to load messages right now.'))
       setMessages([])
     } finally {
       setLoadingMessages(false)
@@ -325,12 +325,8 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       }
       setMessages(data)
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Something went wrong while sending your message.'
-      if (errMsg.includes('413') || errMsg.toLowerCase().includes('too large') || errMsg.toLowerCase().includes('payload')) {
-        setMsgError('That file is too large for the server. Try sending a smaller one.')
-      } else {
-        setMsgError(errMsg)
-      }
+      const rawMsg = err instanceof Error ? err.message : 'Something went wrong while sending your message.'
+      setMsgError(friendlyErrorMessage(rawMsg))
       setUploadProgress(null)
     } finally {
       setSending(false)
@@ -426,11 +422,11 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       if (response.ok) {
         setActionStatus((prev) => prev ? { ...prev, state: 'done', answer: extractAnswer(result) } : prev)
       } else {
-        const errMsg = result.message || result.error || `Error (${response.status})`
+        const errMsg = friendlyErrorMessage(String(result.message || result.error || `Error (${response.status})`))
         setActionStatus((prev) => prev ? { ...prev, state: 'error', answer: errMsg } : prev)
       }
     } catch (err) {
-      setActionStatus((prev) => prev ? { ...prev, state: 'error', answer: err instanceof Error ? err.message : 'Failed to execute action' } : prev)
+      setActionStatus((prev) => prev ? { ...prev, state: 'error', answer: friendlyErrorMessage(err instanceof Error ? err.message : 'Failed to execute action') } : prev)
     }
   }
 
