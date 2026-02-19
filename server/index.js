@@ -35,12 +35,14 @@ async function initDb() {
       title TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'todo',
       request_summary TEXT NOT NULL DEFAULT '',
+      response TEXT NOT NULL DEFAULT '',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       completed_at TIMESTAMPTZ,
       UNIQUE(chat_id, external_task_id)
     )
   `)
+  await pool.query(`ALTER TABLE chat_tasks ADD COLUMN IF NOT EXISTS response TEXT NOT NULL DEFAULT ''`)
 }
 
 function rowToAction(row) {
@@ -129,19 +131,20 @@ app.post('/local-api/actions/:type', async (req, res) => {
 })
 
 app.post('/local-api/chat-tasks', async (req, res) => {
-  const { chatId, actionId, actionName, externalTaskId, title, status, requestSummary } = req.body
+  const { chatId, actionId, actionName, externalTaskId, title, status, requestSummary, response: taskResponse } = req.body
   if (!chatId || !externalTaskId) {
     return res.status(400).json({ error: 'chatId and externalTaskId are required' })
   }
   try {
     await pool.query(
-      `INSERT INTO chat_tasks (chat_id, action_id, action_name, external_task_id, title, status, request_summary)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO chat_tasks (chat_id, action_id, action_name, external_task_id, title, status, request_summary, response)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (chat_id, external_task_id) DO UPDATE SET
          status = EXCLUDED.status,
          title = EXCLUDED.title,
+         response = EXCLUDED.response,
          updated_at = NOW()`,
-      [chatId, actionId || '', actionName || '', String(externalTaskId), title || '', status || 'todo', requestSummary || '']
+      [chatId, actionId || '', actionName || '', String(externalTaskId), title || '', status || 'todo', requestSummary || '', taskResponse || '']
     )
     res.json({ ok: true })
   } catch (err) {
@@ -165,6 +168,7 @@ app.get('/local-api/chat-tasks/:chatId', async (req, res) => {
       title: row.title,
       status: row.status,
       requestSummary: row.request_summary,
+      response: row.response || '',
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       completedAt: row.completed_at,
@@ -223,6 +227,7 @@ app.post('/local-api/chat-tasks/:chatId/refresh', async (req, res) => {
       title: row.title,
       status: row.status,
       requestSummary: row.request_summary,
+      response: row.response || '',
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       completedAt: row.completed_at,

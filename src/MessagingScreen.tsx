@@ -137,8 +137,9 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [actionStatus, setActionStatus] = useState<{ actionName: string; request: string; state: 'waiting' | 'done' | 'error'; answer?: string; timestamp: string } | null>(null)
   const [availableActions, setAvailableActions] = useState<GroupAction[]>([])
   const [selectedBarAction, setSelectedBarAction] = useState<GroupAction | null>(null)
-  const [chatTasks, setChatTasks] = useState<{ id: number; chatId: string; actionId: string; actionName: string; externalTaskId: string; title: string; status: string; requestSummary: string; createdAt: string; updatedAt: string; completedAt: string | null }[]>([])
+  const [chatTasks, setChatTasks] = useState<{ id: number; chatId: string; actionId: string; actionName: string; externalTaskId: string; title: string; status: string; requestSummary: string; response: string; createdAt: string; updatedAt: string; completedAt: string | null }[]>([])
   const [chatTasksLoading, setChatTasksLoading] = useState(false)
+  const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
   const [showPollForm, setShowPollForm] = useState(false)
   const [pollQuestion, setPollQuestion] = useState('')
   const [pollOptions, setPollOptions] = useState(['', ''])
@@ -530,6 +531,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
         if (taskId && selectedChat) {
           const taskTitle = String(taskObj?.title ?? (result as Record<string, unknown>).title ?? '')
           const taskStatus = String(taskObj?.status ?? (result as Record<string, unknown>).status ?? 'todo')
+          const responseText = extractAnswer(result)
           fetch('/local-api/chat-tasks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -541,6 +543,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               title: taskTitle,
               status: taskStatus,
               requestSummary: requestSummary,
+              response: responseText,
             }),
           }).then(() => {
             if (selectedChat) loadChatTasks(selectedChat.id)
@@ -1007,30 +1010,59 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                   </div>
                 )
               })}
-              {chatTasks.map((task) => (
-                <div key={task.id} className={`action-chat-bubble task-bubble ${task.status === 'done' || task.status === 'completed' ? 'task-bubble-completed' : ''}`}>
-                  <div className="action-bubble-header">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                    </svg>
-                    <span className="action-bubble-name">{task.actionName}</span>
-                  </div>
-                  {task.requestSummary && <div className="action-bubble-request">{task.requestSummary}</div>}
-                  <div className={`task-bubble-status ${task.status === 'done' || task.status === 'completed' ? 'task-status-done' : task.status === 'in_progress' || task.status === 'active' ? 'task-status-active' : 'task-status-todo'}`}>
-                    {(task.status === 'done' || task.status === 'completed') ? (
-                      <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg> Completed</>
-                    ) : (task.status === 'in_progress' || task.status === 'active') ? (
-                      <><span className="action-executing-spinner" /> In Progress</>
-                    ) : (
-                      <>{task.title} ({task.status})</>
+              {chatTasks.map((task) => {
+                const isExpanded = expandedTasks.has(task.id)
+                const isDone = task.status === 'done' || task.status === 'completed'
+                const isActive = task.status === 'in_progress' || task.status === 'active'
+                const toggleExpand = () => setExpandedTasks(prev => {
+                  const next = new Set(prev)
+                  next.has(task.id) ? next.delete(task.id) : next.add(task.id)
+                  return next
+                })
+                return (
+                  <div key={task.id} className={`task-compact-bubble ${isDone ? 'task-compact-done' : isActive ? 'task-compact-active' : 'task-compact-todo'}`} onClick={toggleExpand}>
+                    <div className="task-compact-row">
+                      <div className="task-compact-left">
+                        {isDone ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                        ) : isActive ? (
+                          <span className="action-executing-spinner" />
+                        ) : (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                        )}
+                        <span className="task-compact-name">{task.actionName}</span>
+                        <span className={`task-compact-status-label ${isDone ? 'done' : isActive ? 'active' : ''}`}>
+                          {isDone ? 'Completed' : isActive ? 'In Progress' : task.status}
+                        </span>
+                      </div>
+                      <div className="task-compact-right">
+                        <span className="task-compact-time">{new Date(task.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                        <svg className={`task-compact-chevron ${isExpanded ? 'expanded' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className="task-compact-details" onClick={e => e.stopPropagation()}>
+                        {task.requestSummary && (
+                          <div className="task-detail-section">
+                            <span className="task-detail-label">Sent</span>
+                            <div className="task-detail-content">{task.requestSummary}</div>
+                          </div>
+                        )}
+                        {task.response && (
+                          <div className="task-detail-section">
+                            <span className="task-detail-label">Response</span>
+                            <div className="task-detail-content">{task.response}</div>
+                          </div>
+                        )}
+                        <div className="task-detail-section">
+                          <span className="task-detail-label">Task</span>
+                          <div className="task-detail-content">{task.title} #{task.externalTaskId}</div>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <div className="action-bubble-footer">
-                    <span className="action-bubble-timestamp">{new Date(task.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-                    <span className="action-bubble-note">Only visible to you</span>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
               {actionStatus && (
                 <div className="action-chat-bubble">
                   <div className="action-bubble-header">
