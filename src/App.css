@@ -2058,6 +2058,85 @@ button.secondary {
   font-style: italic;
 }
 
+.header-chat-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.task-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.task-badge-active {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.task-badge-completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.task-badge-loading {
+  background: #f3f4f6;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.task-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.task-badge-dot.active {
+  background: #f59e0b;
+  animation: task-dot-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes task-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.task-bubble-completed {
+  border-left: 3px solid #10b981 !important;
+}
+
+.task-bubble-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.task-status-done {
+  color: #065f46;
+  background: #ecfdf5;
+}
+
+.task-status-active {
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.task-status-todo {
+  color: #374151;
+  background: #f9fafb;
+}
+
 .action-executing-spinner {
   width: 12px;
   height: 12px;

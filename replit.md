@@ -71,13 +71,18 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Lint: `npm run lint`
 
 ## Backend
-- **`server/index.js`**: Express server on port 3001 providing CRUD API for actions stored in PostgreSQL
-- **Database**: PostgreSQL `actions` table with columns: id, type (group/chat), name, description, api_url, api_key, api_doc_url, project_id, created_at, updated_at
+- **`server/index.js`**: Express server on port 3001 providing CRUD API for actions and task tracking stored in PostgreSQL
+- **Database**: PostgreSQL tables:
+  - `actions` — id, type (group/chat), name, description, api_url, api_key, api_doc_url, project_id, created_at, updated_at
+  - `chat_tasks` — id, chat_id, action_id, action_name, external_task_id, title, status, request_summary, created_at, updated_at, completed_at (unique on chat_id + external_task_id)
 - **Endpoints**:
   - `GET /local-api/actions/:type` — list actions by type
   - `POST /local-api/actions/:type` — create/update an action (upsert by id)
   - `DELETE /local-api/actions/:type/:id` — delete an action
   - `POST /local-api/actions/execute` — execute an action (proxies to external API server-side to avoid CORS)
+  - `POST /local-api/chat-tasks` — save a task reference (links chat to external TaskFlow task)
+  - `GET /local-api/chat-tasks/:chatId` — list all tasks for a chat
+  - `POST /local-api/chat-tasks/:chatId/refresh` — refresh active task statuses from TaskFlow API and return updated list
 
 ## Deployment
 - Autoscale deployment: builds with `npm run build`, runs Express backend + Vite preview
@@ -96,6 +101,7 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Response bubble stays visible until manually closed by the user
 
 ## Recent Changes
+- 2026-02-19: Task tracking per chat — actions that return a task ID from TaskFlow are persisted in chat_tasks table. Opening a chat refreshes task status from TaskFlow API. Chat header shows active/completed task badges. Persistent task status bubbles appear in chat area with status indicators (todo/in_progress/completed)
 - 2026-02-19: Added Poll sending — poll composer UI in message input bar (question + 2-12 options + multi-select toggle), calls POST /api/messages/send-poll
 - 2026-02-19: Added sendAsDocument flag to media attachments — files can be sent as document attachments preserving original filename
 - 2026-02-19: Real-time message_edit and message_delete WebSocket handling — edited messages show "edited" badge, deleted messages show italic "This message was deleted"

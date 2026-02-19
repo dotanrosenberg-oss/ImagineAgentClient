@@ -25,6 +25,22 @@ async function initDb() {
   await pool.query(`
     ALTER TABLE actions ADD COLUMN IF NOT EXISTS project_id INTEGER
   `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chat_tasks (
+      id SERIAL PRIMARY KEY,
+      chat_id TEXT NOT NULL,
+      action_id TEXT NOT NULL,
+      action_name TEXT NOT NULL DEFAULT '',
+      external_task_id TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'todo',
+      request_summary TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      completed_at TIMESTAMPTZ,
+      UNIQUE(chat_id, external_task_id)
+    )
+  `)
 }
 
 function rowToAction(row) {
@@ -110,6 +126,110 @@ app.post('/local-api/actions/:type', async (req, res) => {
     [id, type, name, description || '', apiUrl, apiKey || '', apiDocUrl || '', projectId || null]
   )
   res.json({ ok: true })
+})
+
+app.post('/local-api/chat-tasks', async (req, res) => {
+  const { chatId, actionId, actionName, externalTaskId, title, status, requestSummary } = req.body
+  if (!chatId || !externalTaskId) {
+    return res.status(400).json({ error: 'chatId and externalTaskId are required' })
+  }
+  try {
+    await pool.query(
+      `INSERT INTO chat_tasks (chat_id, action_id, action_name, external_task_id, title, status, request_summary)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (chat_id, external_task_id) DO UPDATE SET
+         status = EXCLUDED.status,
+         title = EXCLUDED.title,
+         updated_at = NOW()`,
+      [chatId, actionId || '', actionName || '', String(externalTaskId), title || '', status || 'todo', requestSummary || '']
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.get('/local-api/chat-tasks/:chatId', async (req, res) => {
+  const { chatId } = req.params
+  try {
+    const result = await pool.query(
+      'SELECT * FROM chat_tasks WHERE chat_id = $1 ORDER BY created_at DESC',
+      [chatId]
+    )
+    res.json(result.rows.map(row => ({
+      id: row.id,
+      chatId: row.chat_id,
+      actionId: row.action_id,
+      actionName: row.action_name,
+      externalTaskId: row.external_task_id,
+      title: row.title,
+      status: row.status,
+      requestSummary: row.request_summary,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      completedAt: row.completed_at,
+    })))
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/local-api/chat-tasks/:chatId/refresh', async (req, res) => {
+  const { chatId } = req.params
+  try {
+    const tasksResult = await pool.query(
+      `SELECT ct.*, a.api_url, a.api_key FROM chat_tasks ct
+       LEFT JOIN actions a ON ct.action_id = a.id
+       WHERE ct.chat_id = $1 AND ct.status NOT IN ('done', 'completed', 'cancelled')`,
+      [chatId]
+    )
+
+    for (const task of tasksResult.rows) {
+      if (!task.api_url) continue
+      try {
+        const urlObj = new URL(task.api_url)
+        const endpoint = `${urlObj.origin}/api/bot/tasks/${task.external_task_id}`
+        const headers = {}
+        if (task.api_key) headers['Authorization'] = `Bearer ${task.api_key}`
+
+        const response = await fetch(endpoint, { headers })
+        if (response.ok) {
+          const data = await response.json()
+          const taskData = data.task || data
+          const newStatus = taskData.status || task.status
+          const isCompleted = newStatus === 'done' || newStatus === 'completed'
+
+          await pool.query(
+            `UPDATE chat_tasks SET status = $1, title = $2, updated_at = NOW(),
+             completed_at = CASE WHEN $4::boolean THEN NOW() ELSE NULL END
+             WHERE id = $3`,
+            [newStatus, taskData.title || task.title, task.id, isCompleted]
+          )
+        }
+      } catch {
+      }
+    }
+
+    const freshResult = await pool.query(
+      'SELECT * FROM chat_tasks WHERE chat_id = $1 ORDER BY created_at DESC',
+      [chatId]
+    )
+    res.json(freshResult.rows.map(row => ({
+      id: row.id,
+      chatId: row.chat_id,
+      actionId: row.action_id,
+      actionName: row.action_name,
+      externalTaskId: row.external_task_id,
+      title: row.title,
+      status: row.status,
+      requestSummary: row.request_summary,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      completedAt: row.completed_at,
+    })))
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 app.delete('/local-api/actions/:type/:id', async (req, res) => {

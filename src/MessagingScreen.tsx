@@ -137,6 +137,8 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [actionStatus, setActionStatus] = useState<{ actionName: string; request: string; state: 'waiting' | 'done' | 'error'; answer?: string; timestamp: string } | null>(null)
   const [availableActions, setAvailableActions] = useState<GroupAction[]>([])
   const [selectedBarAction, setSelectedBarAction] = useState<GroupAction | null>(null)
+  const [chatTasks, setChatTasks] = useState<{ id: number; chatId: string; actionId: string; actionName: string; externalTaskId: string; title: string; status: string; requestSummary: string; createdAt: string; updatedAt: string; completedAt: string | null }[]>([])
+  const [chatTasksLoading, setChatTasksLoading] = useState(false)
   const [showPollForm, setShowPollForm] = useState(false)
   const [pollQuestion, setPollQuestion] = useState('')
   const [pollOptions, setPollOptions] = useState(['', ''])
@@ -277,12 +279,31 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     }
   }
 
+  const loadChatTasks = useCallback(async (chatId: string) => {
+    setChatTasksLoading(true)
+    try {
+      const res = await fetch(`/local-api/chat-tasks/${encodeURIComponent(chatId)}/refresh`, { method: 'POST' })
+      if (res.ok) {
+        const tasks = await res.json()
+        setChatTasks(tasks)
+      } else {
+        const fallback = await fetch(`/local-api/chat-tasks/${encodeURIComponent(chatId)}`)
+        if (fallback.ok) setChatTasks(await fallback.json())
+      }
+    } catch {
+      setChatTasks([])
+    } finally {
+      setChatTasksLoading(false)
+    }
+  }, [])
+
   const openChat = useCallback(async (chat: Chat) => {
     setSelectedChat(chat)
     setActionStatus(null)
     setSelectedBarAction(null)
     setLoadingMessages(true)
     setMsgError(null)
+    setChatTasks([])
 
     const isDirect = chat.type === 'direct' || chat.type === 'contact' || chat.id?.endsWith('@c.us')
     try {
@@ -291,6 +312,8 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     } catch {
       setAvailableActions([])
     }
+
+    loadChatTasks(chat.id)
     try {
       let data = await fetchMessages(chat.id)
       if (data.length === 0) {
@@ -501,6 +524,28 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
 
       if (response.ok) {
         setActionStatus((prev) => prev ? { ...prev, state: 'done', answer: extractAnswer(result) } : prev)
+
+        const taskObj = (result as Record<string, unknown>).task as Record<string, unknown> | undefined
+        const taskId = taskObj?.id ?? (result as Record<string, unknown>).id
+        if (taskId && selectedChat) {
+          const taskTitle = String(taskObj?.title ?? (result as Record<string, unknown>).title ?? '')
+          const taskStatus = String(taskObj?.status ?? (result as Record<string, unknown>).status ?? 'todo')
+          fetch('/local-api/chat-tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chatId: selectedChat.id,
+              actionId: action.id,
+              actionName: action.name,
+              externalTaskId: String(taskId),
+              title: taskTitle,
+              status: taskStatus,
+              requestSummary: requestSummary,
+            }),
+          }).then(() => {
+            if (selectedChat) loadChatTasks(selectedChat.id)
+          }).catch(() => {})
+        }
       } else {
         const errMsg = friendlyErrorMessage(String(result.message || result.error || `Error (${response.status})`))
         setActionStatus((prev) => prev ? { ...prev, state: 'error', answer: errMsg } : prev)
@@ -775,7 +820,27 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               </button>
               <div className="header-chat-info">
                 <h3>{displayName(selectedChat)}</h3>
-                <span className="chat-type-tag">{isDirectChat(selectedChat) ? 'Direct' : 'Group'}</span>
+                <div className="header-chat-tags">
+                  <span className="chat-type-tag">{isDirectChat(selectedChat) ? 'Direct' : 'Group'}</span>
+                  {chatTasks.length > 0 && (() => {
+                    const activeTasks = chatTasks.filter(t => t.status !== 'done' && t.status !== 'completed' && t.status !== 'cancelled')
+                    const completedTasks = chatTasks.filter(t => t.status === 'done' || t.status === 'completed')
+                    if (activeTasks.length > 0) {
+                      return <span className="task-badge task-badge-active">
+                        <span className="task-badge-dot active" />
+                        {activeTasks.length} task{activeTasks.length > 1 ? 's' : ''} in progress
+                      </span>
+                    }
+                    if (completedTasks.length > 0) {
+                      return <span className="task-badge task-badge-completed">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                        {completedTasks.length} task{completedTasks.length > 1 ? 's' : ''} completed
+                      </span>
+                    }
+                    return null
+                  })()}
+                  {chatTasksLoading && <span className="task-badge task-badge-loading">Checking tasks...</span>}
+                </div>
               </div>
               <div className="header-actions">
                 {isDirectChat(selectedChat) && (
@@ -941,6 +1006,30 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                   </div>
                 )
               })}
+              {chatTasks.map((task) => (
+                <div key={task.id} className={`action-chat-bubble task-bubble ${task.status === 'done' || task.status === 'completed' ? 'task-bubble-completed' : ''}`}>
+                  <div className="action-bubble-header">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    <span className="action-bubble-name">{task.actionName}</span>
+                  </div>
+                  {task.requestSummary && <div className="action-bubble-request">{task.requestSummary}</div>}
+                  <div className={`task-bubble-status ${task.status === 'done' || task.status === 'completed' ? 'task-status-done' : task.status === 'in_progress' || task.status === 'active' ? 'task-status-active' : 'task-status-todo'}`}>
+                    {(task.status === 'done' || task.status === 'completed') ? (
+                      <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg> Completed</>
+                    ) : (task.status === 'in_progress' || task.status === 'active') ? (
+                      <><span className="action-executing-spinner" /> In Progress</>
+                    ) : (
+                      <>{task.title} ({task.status})</>
+                    )}
+                  </div>
+                  <div className="action-bubble-footer">
+                    <span className="action-bubble-timestamp">{new Date(task.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                    <span className="action-bubble-note">Only visible to you</span>
+                  </div>
+                </div>
+              ))}
               {actionStatus && (
                 <div className="action-chat-bubble">
                   <div className="action-bubble-header">
