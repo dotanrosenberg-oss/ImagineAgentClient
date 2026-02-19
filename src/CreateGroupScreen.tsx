@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { FormEvent } from 'react'
 import heic2any from 'heic2any'
-import { QRCodeSVG } from 'qrcode.react'
-import { createGroup, setGroupImage, fetchChat, checkNumber, getGroupJoinUrl, friendlyErrorMessage } from './api'
-import type { Participant, GroupCreateResult } from './api'
+import { createGroup, setGroupImage, fetchChat, checkNumber, friendlyErrorMessage } from './api'
+import type { Participant } from './api'
 
 interface Props {
   onBack: () => void
@@ -48,8 +47,6 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
   const [creating, setCreating] = useState(false)
   const [creatingStatus, setCreatingStatus] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [createdGroupInfo, setCreatedGroupInfo] = useState<GroupCreateResult | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string>(DEFAULT_PHOTO)
   const [useDefaultPhoto, setUseDefaultPhoto] = useState(true)
@@ -60,9 +57,6 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
   const [validating, setValidating] = useState(false)
   const [validationResults, setValidationResults] = useState<NumberValidation[]>([])
   const [validationDone, setValidationDone] = useState(false)
-  const [inviteLink, setInviteLink] = useState<string | null>(null)
-  const [inviteLinkError, setInviteLinkError] = useState<string | null>(null)
-  const [linkCopied, setLinkCopied] = useState(false)
 
   useEffect(() => {
     if (prefillParticipants && prefillParticipants.length > 0) {
@@ -294,13 +288,11 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     setCreatingStatus('Creating group on WhatsApp...')
     try {
       const result = await createGroup(nameToUse, unique)
-      setCreatedGroupInfo(result)
 
       const groupId = result.groupId || result.id
       if (!groupId) {
-        setSuccess(true)
         setCreating(false)
-        setCreatingStatus('Group created, but we couldn\'t get the group details. Head back to your chats to find it.')
+        onBack()
         return
       }
 
@@ -340,41 +332,12 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
         }
       }
 
-      setCreatingStatus('Getting invite link...')
-      try {
-        const joinResult = await getGroupJoinUrl(groupId)
-        if (joinResult?.joinUrl) {
-          setInviteLink(joinResult.joinUrl)
-        }
-      } catch {
-        setInviteLinkError('Invite link not available for this group yet.')
-      }
-
-      setSuccess(true)
       setCreating(false)
-      setCreatingStatus(confirmed ? 'Group created and confirmed!' : 'Group created! It may take a moment to appear in your chat list.')
+      onCreated(groupId)
     } catch (err) {
       setError(friendlyErrorMessage(err instanceof Error ? err.message : 'Failed to create group'))
       setCreating(false)
       setCreatingStatus('')
-    }
-  }
-
-  const copyInviteLink = async () => {
-    if (!inviteLink) return
-    try {
-      await navigator.clipboard.writeText(inviteLink)
-      setLinkCopied(true)
-      setTimeout(() => setLinkCopied(false), 2000)
-    } catch {
-      const textarea = document.createElement('textarea')
-      textarea.value = inviteLink
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textarea)
-      setLinkCopied(true)
-      setTimeout(() => setLinkCopied(false), 2000)
     }
   }
 
@@ -394,7 +357,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
           <h2>Create Group</h2>
         </div>
 
-        {hasMembers && sourceGroupName && !success && !creating && (
+        {hasMembers && sourceGroupName && !creating && (
           <div className="express-create-section">
             <div className="express-create-info">
               <span className="express-label">Quick create:</span>
@@ -414,7 +377,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
 
         <form onSubmit={handleSubmit} className="form">
           <div className="photo-upload-section">
-            <div className="photo-preview-wrapper" onClick={() => !creating && !success && fileInputRef.current?.click()}>
+            <div className="photo-preview-wrapper" onClick={() => !creating && fileInputRef.current?.click()}>
               <img src={photoPreview} alt="Group photo" className="photo-preview" />
               <div className="photo-overlay">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -426,7 +389,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
             <div className="photo-actions">
               <span className="photo-label">{useDefaultPhoto ? 'Default photo' : photoFile?.name}</span>
               {!useDefaultPhoto && (
-                <button type="button" className="text-btn" onClick={removePhoto} disabled={creating || success}>
+                <button type="button" className="text-btn" onClick={removePhoto} disabled={creating}>
                   Reset to default
                 </button>
               )}
@@ -448,7 +411,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
               value={groupName}
               onChange={(e) => { setGroupName(e.target.value); setUserEditedName(true) }}
               autoFocus
-              disabled={creating || success}
+              disabled={creating}
             />
           </label>
 
@@ -457,10 +420,10 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
               <div className="members-header">
                 <span className="members-label">Members ({getSelectedCount()} of {prefillParticipants!.length} selected)</span>
                 <div className="members-actions">
-                  <button type="button" className="text-btn" onClick={selectAll} disabled={creating || success}>
+                  <button type="button" className="text-btn" onClick={selectAll} disabled={creating}>
                     All
                   </button>
-                  <button type="button" className="text-btn" onClick={deselectAll} disabled={creating || success}>
+                  <button type="button" className="text-btn" onClick={deselectAll} disabled={creating}>
                     None
                   </button>
                 </div>
@@ -474,7 +437,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
                         type="checkbox"
                         checked={!!selectedMembers[p.phone]}
                         onChange={() => toggleMember(p.phone)}
-                        disabled={creating || success}
+                        disabled={creating}
                       />
                       <span className="member-name">{p.name || p.phone}</span>
                       <span className="member-phone">{p.phone}</span>
@@ -503,7 +466,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
               value={manualParticipants}
               onChange={(e) => { setManualParticipants(e.target.value); setValidationDone(false); setValidationResults([]) }}
               rows={hasMembers ? 2 : 4}
-              disabled={creating || success}
+              disabled={creating}
               required={!hasMembers}
             />
             <span className="hint">Include country code (e.g. +1 for US). Separate with commas, semicolons, or new lines.</span>
@@ -520,7 +483,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
               </span>
               <div
                 className={`toggle-switch ${allowSendMessages ? 'active' : ''}`}
-                onClick={() => !creating && !success && setAllowSendMessages(!allowSendMessages)}
+                onClick={() => !creating && setAllowSendMessages(!allowSendMessages)}
               >
                 <div className="toggle-knob" />
               </div>
@@ -537,7 +500,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
               </span>
               <div
                 className={`toggle-switch ${allowAddMembers ? 'active' : ''}`}
-                onClick={() => !creating && !success && setAllowAddMembers(!allowAddMembers)}
+                onClick={() => !creating && setAllowAddMembers(!allowAddMembers)}
               >
                 <div className="toggle-knob" />
               </div>
@@ -551,7 +514,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
             </div>
           )}
 
-          {validationDone && validationResults.length > 0 && !creating && !success && (
+          {validationDone && validationResults.length > 0 && !creating && (
             <div className="validation-summary">
               {unregisteredCount > 0 && (
                 <div className="validation-warning">
@@ -595,99 +558,17 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
             </div>
           )}
 
-          {success && createdGroupInfo && (
-            <div className="group-created-confirmation">
-              <div className="status success">{creatingStatus}</div>
-              <div className="created-group-details">
-                <div className="created-group-row">
-                  <span className="created-group-label">Group Name</span>
-                  <span className="created-group-value">{createdGroupInfo.chat?.name || createdGroupInfo.groupName || groupName}</span>
-                </div>
-                <div className="created-group-row">
-                  <span className="created-group-label">Group ID</span>
-                  <span className="created-group-value created-group-id">{createdGroupInfo.groupId || createdGroupInfo.id}</span>
-                </div>
-              </div>
-
-              {inviteLink && (
-                <div className="invite-section">
-                  <div className="invite-header">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                    </svg>
-                    <span>Invite Link</span>
-                  </div>
-                  <div className="invite-link-row">
-                    <input
-                      type="text"
-                      value={inviteLink}
-                      readOnly
-                      className="invite-link-input"
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                    />
-                    <button type="button" className="invite-copy-btn" onClick={copyInviteLink}>
-                      {linkCopied ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
-                      ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                        </svg>
-                      )}
-                      {linkCopied ? 'Copied!' : 'Copy'}
-                    </button>
-                  </div>
-                  <div className="invite-qr-section">
-                    <QRCodeSVG value={inviteLink} size={160} level="M" />
-                    <span className="invite-qr-label">Scan to join group</span>
-                  </div>
-                </div>
-              )}
-
-              {inviteLinkError && (
-                <div className="invite-section invite-error">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <span>{inviteLinkError}</span>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className="go-to-chats-btn"
-                onClick={() => onCreated(createdGroupInfo.groupId || createdGroupInfo.id)}
-              >
-                Go to Chats
-              </button>
-            </div>
-          )}
-
-          {success && !createdGroupInfo && (
-            <div className="group-created-confirmation">
-              <div className="status success">{creatingStatus || 'Group created!'}</div>
-              <button type="button" className="go-to-chats-btn" onClick={onBack}>
-                Back to Chats
-              </button>
-            </div>
-          )}
-
-          {!success && (
-            <div className="actions">
-              <button
-                type="submit"
-                disabled={(!groupName.trim() && !defaultGroupName) || getTotalCount() === 0 || creating || success || validating}
-              >
-                {validating ? 'Checking...' : creating ? 'Creating...' : `Create Group${getTotalCount() > 0 ? ` (${getTotalCount()} members)` : ''}`}
-              </button>
-              <button type="button" className="secondary" onClick={onBack} disabled={creating || validating}>
-                Cancel
-              </button>
-            </div>
-          )}
+          <div className="actions">
+            <button
+              type="submit"
+              disabled={(!groupName.trim() && !defaultGroupName) || getTotalCount() === 0 || creating || validating}
+            >
+              {validating ? 'Checking...' : creating ? 'Creating...' : `Create Group${getTotalCount() > 0 ? ` (${getTotalCount()} members)` : ''}`}
+            </button>
+            <button type="button" className="secondary" onClick={onBack} disabled={creating || validating}>
+              Cancel
+            </button>
+          </div>
         </form>
       </div>
     </div>
