@@ -273,14 +273,7 @@ export async function fetchWhatsAppMessages(chatId: string, limit: number = 200)
 }
 
 export async function sendMessage(chatId: string, message: string): Promise<{ success: boolean }> {
-  const p = chatPath(chatId)
-  return apiCallWithFallback(
-    `${p.v2}/messages`,
-    `${p.v1}/messages`,
-    'POST',
-    { message },
-    30000
-  )
+  return apiCall('api/messages/send', 'POST', { chatId, message }, 30000)
 }
 
 export async function sendMessageWithAttachment(
@@ -289,50 +282,36 @@ export async function sendMessageWithAttachment(
   caption?: string
 ): Promise<{ success: boolean }> {
   const formData = new FormData()
+  formData.append('chatId', chatId)
   formData.append('file', file)
   if (caption && caption.trim()) formData.append('caption', caption.trim())
-
-  const encodedChat = encodeURIComponent(chatId)
-  const endpoints = [
-    `/api/chats/${encodedChat}/messages`,
-    `/api/customers/${encodedChat}/messages`,
-  ]
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 120000)
 
   try {
-    for (const endpoint of endpoints) {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      })
+    const response = await fetch('/api/messages/send-media', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal,
+    })
 
-      if (response.status === 404 || response.status === 405) {
-        const contentType = response.headers.get('content-type') || ''
-        if (!contentType.includes('application/json')) continue
-      }
-
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('Unable to authenticate. The API key may be incorrect for this server.')
-      }
-      if (response.status === 503) {
-        throw new Error('WhatsApp is temporarily unavailable. It may be reconnecting — try again in a moment.')
-      }
-      if (!response.ok) {
-        const text = await response.text()
-        let msg = `Server error (${response.status})`
-        try {
-          const parsed = JSON.parse(text)
-          if (parsed.message) msg = parsed.message
-          else if (parsed.error) msg = parsed.error
-        } catch { /* ignore */ }
-        throw new Error(msg)
-      }
-      return response.json() as Promise<{ success: boolean }>
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Unable to authenticate. The API key may be incorrect for this server.')
     }
-    throw new Error('Endpoint not available')
+    if (response.status === 503) {
+      throw new Error('WhatsApp is temporarily unavailable. It may be reconnecting — try again in a moment.')
+    }
+    if (!response.ok) {
+      const text = await response.text()
+      let msg = `Server error (${response.status})`
+      try {
+        const parsed = JSON.parse(text)
+        msg = extractErrorMessage(parsed, response.status)
+      } catch { /* ignore */ }
+      throw new Error(msg)
+    }
+    return response.json() as Promise<{ success: boolean }>
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
       throw new Error('The upload took too long. Try a smaller file, or check your connection.')
@@ -391,23 +370,50 @@ export async function fetchParticipants(chatId: string): Promise<Participant[]> 
 
 export async function createGroup(
   name: string,
-  participants: string[],
-  _iconFile?: File,
-  settings?: { membersCanSendMessages: boolean; membersCanAddMembers: boolean }
+  participants: string[]
 ): Promise<GroupCreateResult> {
-  const makeRequest = async (): Promise<GroupCreateResult> => {
-    const body: Record<string, unknown> = { name, participants }
-    if (settings) body.settings = settings
-    return apiCall('api/groups/create', 'POST', body, 60000)
-  }
-
   try {
-    return await makeRequest()
+    return await apiCall('api/groups/create', 'POST', { name, participants }, 60000)
   } catch (err) {
     if (err instanceof Error) {
       throw new Error(friendlyGroupError(err.message, participants))
     }
     throw err
+  }
+}
+
+export async function setGroupImage(groupId: string, imageFile: File): Promise<{ success: boolean; groupId: string }> {
+  const formData = new FormData()
+  formData.append('groupId', groupId)
+  formData.append('image', imageFile)
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 30000)
+
+  try {
+    const response = await fetch('/api/groups/set-image', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      const text = await response.text()
+      let msg = `Failed to set group image (${response.status})`
+      try {
+        const parsed = JSON.parse(text)
+        msg = extractErrorMessage(parsed, response.status)
+      } catch { /* ignore */ }
+      throw new Error(msg)
+    }
+    return response.json() as Promise<{ success: boolean; groupId: string }>
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Image upload timed out. Try a smaller image.')
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
   }
 }
 

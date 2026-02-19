@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { FormEvent } from 'react'
-import { createGroup, fetchChat } from './api'
+import { createGroup, setGroupImage, fetchChat } from './api'
 import type { Participant, GroupCreateResult } from './api'
 
 interface Props {
@@ -135,23 +135,9 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
 
     setCreating(true)
     setError(null)
-    setCreatingStatus('Preparing group...')
+    setCreatingStatus('Creating group on WhatsApp...')
     try {
-      let iconFile: File | undefined
-      if (photoFile) {
-        iconFile = photoFile
-      } else if (useDefaultPhoto) {
-        const resp = await fetch(DEFAULT_PHOTO)
-        const blob = await resp.blob()
-        iconFile = new File([blob], 'default.png', { type: 'image/png' })
-      }
-
-      const settings = {
-        membersCanSendMessages: allowSendMessages,
-        membersCanAddMembers: allowAddMembers,
-      }
-      setCreatingStatus('Creating group on WhatsApp... This may take up to a minute.')
-      const result = await createGroup(groupName.trim(), unique, iconFile, settings)
+      const result = await createGroup(groupName.trim(), unique)
       setCreatedGroupInfo(result)
 
       const groupId = result.groupId || result.id
@@ -175,6 +161,26 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
           if (attempt < maxAttempts) {
             setCreatingStatus(`Waiting for group to appear... (attempt ${attempt + 1}/${maxAttempts})`)
           }
+        }
+      }
+
+      let iconFile: File | undefined
+      if (photoFile) {
+        iconFile = photoFile
+      } else if (useDefaultPhoto) {
+        try {
+          const resp = await fetch(DEFAULT_PHOTO)
+          const blob = await resp.blob()
+          iconFile = new File([blob], 'default.png', { type: 'image/png' })
+        } catch { /* ignore default photo fetch failure */ }
+      }
+
+      if (iconFile && groupId) {
+        setCreatingStatus('Setting group photo...')
+        try {
+          await setGroupImage(groupId, iconFile)
+        } catch {
+          /* group photo is optional — don't fail the whole creation */
         }
       }
 
