@@ -39,6 +39,13 @@ export interface GroupCreateResult {
   groupId: string
   groupName: string
   id: string
+  chat?: {
+    id: string
+    name: string
+    isGroup: boolean
+    participantCount: number
+    isAdmin: boolean
+  }
 }
 
 function stringify(val: unknown): string {
@@ -288,13 +295,16 @@ export async function fetchChats(): Promise<Chat[]> {
 export async function fetchChat(chatId: string): Promise<Chat> {
   const p = chatPath(chatId)
   const result = await apiCallWithFallback<any>(p.v2, p.v1, 'GET', undefined, 5000)
-  return normalizeChat(result)
+  const raw = result?.chat || result
+  return normalizeChat(raw)
 }
 
-export async function syncChats(): Promise<Chat[]> {
+export async function syncChats(): Promise<{ status: string; timestamp?: string }> {
   const result = await apiCallWithFallback<any>('api/chats/sync', 'api/customers/sync', 'POST', undefined, 60000)
-  const list = Array.isArray(result) ? result : (result?.chats || [])
-  return list.map(normalizeChat)
+  if (result?.status) {
+    return { status: result.status, timestamp: result.timestamp }
+  }
+  return { status: 'synced' }
 }
 
 export async function deleteChat(chatId: string): Promise<void> {
@@ -376,14 +386,14 @@ export async function sendMessageWithAttachment(
   }
 }
 
-export async function editMessage(chatId: string, messageId: string, message: string): Promise<void> {
+export async function editMessage(chatId: string, messageId: string, newBody: string): Promise<void> {
   const p = chatPath(chatId)
   const msgId = encodeURIComponent(messageId)
   return apiCallWithFallback(
     `${p.v2}/messages/${msgId}`,
     `${p.v1}/messages/${msgId}`,
     'PATCH',
-    { message },
+    { body: newBody },
     30000
   )
 }
@@ -475,7 +485,11 @@ export async function checkNumber(phoneNumber: string): Promise<{ registered: bo
   return apiCall('api/diagnostics/check-number', 'POST', { phoneNumber }, 30000)
 }
 
-export async function getGroupInviteLink(groupId: string): Promise<{ inviteLink: string }> {
-  const encoded = encodeURIComponent(groupId)
-  return apiCall(`api/groups/${encoded}/invite`, 'GET', undefined, 15000)
+export async function getGroupJoinUrl(groupId: string): Promise<{ joinUrl: string; token: string }> {
+  return apiCall('api/groups/join-url', 'POST', { groupId }, 15000)
+}
+
+export async function fetchProfilePic(chatId: string): Promise<{ profilePicUrl: string | null }> {
+  const encoded = encodeURIComponent(chatId)
+  return apiCall(`api/chats/${encoded}/profile-pic`, 'GET', undefined, 10000)
 }

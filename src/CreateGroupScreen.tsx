@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import type { FormEvent } from 'react'
 import heic2any from 'heic2any'
 import { QRCodeSVG } from 'qrcode.react'
-import { createGroup, setGroupImage, fetchChat, checkNumber, getGroupInviteLink, friendlyErrorMessage } from './api'
+import { createGroup, setGroupImage, fetchChat, checkNumber, getGroupJoinUrl, friendlyErrorMessage } from './api'
 import type { Participant, GroupCreateResult } from './api'
 
 interface Props {
@@ -342,9 +342,9 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
 
       setCreatingStatus('Getting invite link...')
       try {
-        const inviteResult = await getGroupInviteLink(groupId)
-        if (inviteResult?.inviteLink) {
-          setInviteLink(inviteResult.inviteLink)
+        const joinResult = await getGroupJoinUrl(groupId)
+        if (joinResult?.joinUrl) {
+          setInviteLink(joinResult.joinUrl)
         }
       } catch {
         setInviteLinkError('Invite link not available for this group yet.')
@@ -601,7 +601,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
               <div className="created-group-details">
                 <div className="created-group-row">
                   <span className="created-group-label">Group Name</span>
-                  <span className="created-group-value">{createdGroupInfo.groupName || groupName}</span>
+                  <span className="created-group-value">{createdGroupInfo.chat?.name || createdGroupInfo.groupName || groupName}</span>
                 </div>
                 <div className="created-group-row">
                   <span className="created-group-label">Group ID</span>
