@@ -41,6 +41,44 @@ export interface GroupCreateResult {
   id: string
 }
 
+function extractErrorMessage(parsed: Record<string, unknown>, status: number): string {
+  const detail = parsed.details || parsed.detail || ''
+  const msg = (parsed.message as string) || (parsed.error as string) || ''
+  if (detail) return `${msg} — ${detail}`
+  if (msg) return msg
+  return `Server error (${status})`
+}
+
+function friendlyGroupError(rawMessage: string, participants: string[]): string {
+  const lower = rawMessage.toLowerCase()
+
+  if (lower.includes('validation_error') || lower.includes('validation error')) {
+    if (participants.length > 0) {
+      const nums = participants.join(', ')
+      return `Couldn't create the group. One or more phone numbers may be invalid or not on WhatsApp: ${nums}. Make sure numbers include the country code (e.g. +1 for US).`
+    }
+    return 'Couldn\'t create the group. Please check that all phone numbers are valid and include the country code (e.g. +1 for US).'
+  }
+
+  if (lower.includes('not found') || lower.includes('not_found')) {
+    return 'One or more participants could not be found on WhatsApp. Double-check the numbers and try again.'
+  }
+
+  if (lower.includes('timeout') || lower.includes('timed out') || lower.includes('aborted')) {
+    return 'The request took too long. WhatsApp may be busy — please try again in a moment.'
+  }
+
+  if (lower.includes('unauthorized') || lower.includes('auth') || lower.includes('403') || lower.includes('401')) {
+    return 'Unable to authenticate with the server. The API key may need to be updated.'
+  }
+
+  if (lower.includes('rate') || lower.includes('too many')) {
+    return 'Too many requests — please wait a moment before trying again.'
+  }
+
+  return rawMessage
+}
+
 async function apiCall<T>(
   endpoint: string,
   method: string = 'GET',
@@ -85,8 +123,7 @@ async function apiCall<T>(
       let msg = `Server error (${response.status})`
       try {
         const parsed = JSON.parse(text)
-        if (parsed.message) msg = parsed.message
-        else if (parsed.error) msg = parsed.error
+        msg = extractErrorMessage(parsed, response.status)
       } catch { /* ignore */ }
       throw new Error(msg)
     }
@@ -348,41 +385,51 @@ export async function createGroup(
   iconFile?: File,
   settings?: { membersCanSendMessages: boolean; membersCanAddMembers: boolean }
 ): Promise<GroupCreateResult> {
-  if (iconFile) {
-    const formData = new FormData()
-    formData.append('name', name)
-    formData.append('participants', JSON.stringify(participants))
-    if (settings) formData.append('settings', JSON.stringify(settings))
-    formData.append('icon', iconFile)
+  const makeRequest = async (): Promise<GroupCreateResult> => {
+    if (iconFile) {
+      const formData = new FormData()
+      formData.append('name', name)
+      formData.append('participants', JSON.stringify(participants))
+      if (settings) formData.append('settings', JSON.stringify(settings))
+      formData.append('icon', iconFile)
 
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 60000)
-    try {
-      const response = await fetch('/api/groups/create', {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      })
-      clearTimeout(timer)
-      if (!response.ok) {
-        const text = await response.text()
-        let msg = `Server error (${response.status})`
-        try {
-          const parsed = JSON.parse(text)
-          if (parsed.message) msg = parsed.message
-          else if (parsed.error) msg = parsed.error
-        } catch { /* ignore */ }
-        throw new Error(msg)
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 60000)
+      try {
+        const response = await fetch('/api/groups/create', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
+        if (!response.ok) {
+          const text = await response.text()
+          let msg = `Server error (${response.status})`
+          try {
+            const parsed = JSON.parse(text)
+            msg = extractErrorMessage(parsed, response.status)
+          } catch { /* ignore */ }
+          throw new Error(msg)
+        }
+        return await response.json()
+      } catch (err) {
+        clearTimeout(timer)
+        throw err
       }
-      return await response.json()
-    } catch (err) {
-      clearTimeout(timer)
-      throw err
     }
+    const body: Record<string, unknown> = { name, participants }
+    if (settings) body.settings = settings
+    return apiCall('api/groups/create', 'POST', body, 60000)
   }
-  const body: Record<string, unknown> = { name, participants }
-  if (settings) body.settings = settings
-  return apiCall('api/groups/create', 'POST', body, 60000)
+
+  try {
+    return await makeRequest()
+  } catch (err) {
+    if (err instanceof Error) {
+      throw new Error(friendlyGroupError(err.message, participants))
+    }
+    throw err
+  }
 }
 
 export async function checkNumber(phoneNumber: string): Promise<{ registered: boolean }> {
