@@ -385,11 +385,13 @@ export async function createGroup(
   iconFile?: File,
   settings?: { membersCanSendMessages: boolean; membersCanAddMembers: boolean }
 ): Promise<GroupCreateResult> {
+  const cleanParticipants = participants.map(p => p.replace(/^\+/, ''))
+
   const makeRequest = async (): Promise<GroupCreateResult> => {
     if (iconFile) {
       const formData = new FormData()
       formData.append('name', name)
-      formData.append('participants', JSON.stringify(participants))
+      formData.append('participants', JSON.stringify(cleanParticipants))
       if (settings) formData.append('settings', JSON.stringify(settings))
       formData.append('icon', iconFile)
 
@@ -417,7 +419,7 @@ export async function createGroup(
         throw err
       }
     }
-    const body: Record<string, unknown> = { name, participants }
+    const body: Record<string, unknown> = { name, participants: cleanParticipants }
     if (settings) body.settings = settings
     return apiCall('api/groups/create', 'POST', body, 60000)
   }
