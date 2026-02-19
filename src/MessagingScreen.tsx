@@ -320,6 +320,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       if (data.length === 0) {
         data = await fetchWhatsAppMessages(chat.id, 100)
       }
+      data.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
       setMessages(data)
     } catch (err) {
       setMsgError(friendlyErrorMessage(err instanceof Error ? err.message : 'Unable to load messages right now.'))
@@ -392,6 +393,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       await sendPoll(selectedChat.id, trimmedQuestion, trimmedOptions, pollMultiSelect)
       resetPollForm()
       const data = await fetchMessages(selectedChat.id)
+      data.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
       setMessages(data)
     } catch (err) {
       const rawMsg = err instanceof Error ? err.message : 'Something went wrong while sending the poll.'
@@ -424,6 +426,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       if (data.length === 0) {
         data = await fetchWhatsAppMessages(selectedChat.id, 100)
       }
+      data.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
       setMessages(data)
     } catch (err) {
       const rawMsg = err instanceof Error ? err.message : 'Something went wrong while sending your message.'
