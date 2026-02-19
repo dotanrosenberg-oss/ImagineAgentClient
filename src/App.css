@@ -2094,6 +2094,14 @@ button.secondary {
   color: #065f46;
 }
 
+.task-badge-clickable {
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.task-badge-clickable:hover {
+  filter: brightness(0.92);
+}
+
 .task-badge-loading {
   background: #f3f4f6;
   color: #6b7280;

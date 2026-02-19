@@ -289,20 +289,27 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
 
   const loadChatTasks = useCallback(async (chatId: string) => {
     setChatTasksLoading(true)
+    let hasCached = false
+    try {
+      const cachedRes = await fetch(`/local-api/chat-tasks/${encodeURIComponent(chatId)}`)
+      if (cachedRes.ok) {
+        const cached = await cachedRes.json()
+        if (cached.length > 0) {
+          setChatTasks(cached)
+          hasCached = true
+        }
+      }
+    } catch {}
     try {
       const res = await fetch(`/local-api/chat-tasks/${encodeURIComponent(chatId)}/refresh`, { method: 'POST' })
       if (res.ok) {
         const tasks = await res.json()
         setChatTasks(tasks)
-      } else {
-        const fallback = await fetch(`/local-api/chat-tasks/${encodeURIComponent(chatId)}`)
-        if (fallback.ok) setChatTasks(await fallback.json())
       }
     } catch {
-      setChatTasks([])
-    } finally {
-      setChatTasksLoading(false)
+      if (!hasCached) setChatTasks([])
     }
+    setChatTasksLoading(false)
   }, [])
 
   const openChat = useCallback(async (chat: Chat) => {
@@ -831,15 +838,19 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                   {chatTasks.length > 0 && (() => {
                     const activeTasks = chatTasks.filter(t => t.status !== 'done' && t.status !== 'completed' && t.status !== 'cancelled')
                     const completedTasks = chatTasks.filter(t => t.status === 'done' || t.status === 'completed')
+                    const scrollToTasks = () => {
+                      const el = document.querySelector('.task-compact-bubble')
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }
                     return <>
                       {activeTasks.length > 0 && (
-                        <span className="task-badge task-badge-active">
+                        <span className="task-badge task-badge-active task-badge-clickable" onClick={scrollToTasks}>
                           <span className="task-badge-dot active" />
                           {activeTasks.length} task{activeTasks.length > 1 ? 's' : ''} in progress
                         </span>
                       )}
                       {completedTasks.length > 0 && (
-                        <span className="task-badge task-badge-completed">
+                        <span className="task-badge task-badge-completed task-badge-clickable" onClick={scrollToTasks}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
                           {completedTasks.length} completed
                         </span>
