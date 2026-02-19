@@ -937,15 +937,91 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               {loadingMessages && <div className="loading-state">Loading messages...</div>}
               {msgError && <div className="error-state">{msgError}</div>}
 
-              {messages.map((msg, i) => {
-                const showDateHeader =
-                  i === 0 ||
-                  formatDate(msg.timestamp) !== formatDate(messages[i - 1].timestamp)
+              {(() => {
+                type TimelineItem = { kind: 'message'; msg: Message; idx: number } | { kind: 'task'; task: typeof chatTasks[0] }
+                const items: TimelineItem[] = [
+                  ...messages.map((msg, idx) => ({ kind: 'message' as const, msg, idx })),
+                  ...chatTasks.map(task => ({ kind: 'task' as const, task })),
+                ]
+                items.sort((a, b) => {
+                  const ta = a.kind === 'message' ? new Date(a.msg.timestamp).getTime() : new Date(a.task.createdAt).getTime()
+                  const tb = b.kind === 'message' ? new Date(b.msg.timestamp).getTime() : new Date(b.task.createdAt).getTime()
+                  return ta - tb
+                })
+                let lastDateStr = ''
+                return items.map((item, i) => {
+                  if (item.kind === 'task') {
+                    const task = item.task
+                    const taskDateStr = formatDate(task.createdAt)
+                    const showTaskDate = taskDateStr !== lastDateStr
+                    lastDateStr = taskDateStr
+                    const isExpanded = expandedTasks.has(task.id)
+                    const isDone = task.status === 'done' || task.status === 'completed'
+                    const isActive = task.status === 'in_progress' || task.status === 'active'
+                    const toggleExpand = () => setExpandedTasks(prev => {
+                      const next = new Set(prev)
+                      next.has(task.id) ? next.delete(task.id) : next.add(task.id)
+                      return next
+                    })
+                    return (
+                      <div key={`task-${task.id}`}>
+                        {showTaskDate && (
+                          <div className="date-divider"><span>{taskDateStr}</span></div>
+                        )}
+                        <div className={`task-compact-bubble ${isDone ? 'task-compact-done' : isActive ? 'task-compact-active' : 'task-compact-todo'}`} onClick={toggleExpand}>
+                          <div className="task-compact-row">
+                            <div className="task-compact-left">
+                              {isDone ? (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                              ) : isActive ? (
+                                <span className="action-executing-spinner" />
+                              ) : (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                              )}
+                              <span className="task-compact-name">{task.actionName}</span>
+                              <span className="task-compact-id">#{task.externalTaskId}</span>
+                              <span className={`task-compact-status-label ${isDone ? 'done' : isActive ? 'active' : ''}`}>
+                                {isDone ? 'Completed' : isActive ? 'In Progress' : task.status}
+                              </span>
+                            </div>
+                            <div className="task-compact-right">
+                              <span className="task-compact-time">{new Date(task.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                              <svg className={`task-compact-chevron ${isExpanded ? 'expanded' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+                            </div>
+                          </div>
+                          {isExpanded && (
+                            <div className="task-compact-details" onClick={e => e.stopPropagation()}>
+                              {task.requestSummary && (
+                                <div className="task-detail-section">
+                                  <span className="task-detail-label">Sent</span>
+                                  <div className="task-detail-content">{task.requestSummary}</div>
+                                </div>
+                              )}
+                              {task.response && (
+                                <div className="task-detail-section">
+                                  <span className="task-detail-label">Response</span>
+                                  <div className="task-detail-content">{task.response}</div>
+                                </div>
+                              )}
+                              <div className="task-detail-section">
+                                <span className="task-detail-label">Task</span>
+                                <div className="task-detail-content">{task.title} #{task.externalTaskId}</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+                  const msg = item.msg
+                  const msgDateStr = formatDate(msg.timestamp)
+                  const showDateHeader = msgDateStr !== lastDateStr
+                  lastDateStr = msgDateStr
                 return (
                   <div key={msg.id || i}>
                     {showDateHeader && (
                       <div className="date-divider">
-                        <span>{formatDate(msg.timestamp)}</span>
+                        <span>{msgDateStr}</span>
                       </div>
                     )}
                     <div className={`message-bubble ${msg.isFromMe ? 'sent' : 'received'}${msg.isDeleted ? ' deleted' : ''}`}>
@@ -1045,61 +1121,8 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                     </div>
                   </div>
                 )
-              })}
-              {chatTasks.map((task) => {
-                const isExpanded = expandedTasks.has(task.id)
-                const isDone = task.status === 'done' || task.status === 'completed'
-                const isActive = task.status === 'in_progress' || task.status === 'active'
-                const toggleExpand = () => setExpandedTasks(prev => {
-                  const next = new Set(prev)
-                  next.has(task.id) ? next.delete(task.id) : next.add(task.id)
-                  return next
-                })
-                return (
-                  <div key={task.id} className={`task-compact-bubble ${isDone ? 'task-compact-done' : isActive ? 'task-compact-active' : 'task-compact-todo'}`} onClick={toggleExpand}>
-                    <div className="task-compact-row">
-                      <div className="task-compact-left">
-                        {isDone ? (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                        ) : isActive ? (
-                          <span className="action-executing-spinner" />
-                        ) : (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                        )}
-                        <span className="task-compact-name">{task.actionName}</span>
-                        <span className="task-compact-id">#{task.externalTaskId}</span>
-                        <span className={`task-compact-status-label ${isDone ? 'done' : isActive ? 'active' : ''}`}>
-                          {isDone ? 'Completed' : isActive ? 'In Progress' : task.status}
-                        </span>
-                      </div>
-                      <div className="task-compact-right">
-                        <span className="task-compact-time">{new Date(task.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-                        <svg className={`task-compact-chevron ${isExpanded ? 'expanded' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
-                      </div>
-                    </div>
-                    {isExpanded && (
-                      <div className="task-compact-details" onClick={e => e.stopPropagation()}>
-                        {task.requestSummary && (
-                          <div className="task-detail-section">
-                            <span className="task-detail-label">Sent</span>
-                            <div className="task-detail-content">{task.requestSummary}</div>
-                          </div>
-                        )}
-                        {task.response && (
-                          <div className="task-detail-section">
-                            <span className="task-detail-label">Response</span>
-                            <div className="task-detail-content">{task.response}</div>
-                          </div>
-                        )}
-                        <div className="task-detail-section">
-                          <span className="task-detail-label">Task</span>
-                          <div className="task-detail-content">{task.title} #{task.externalTaskId}</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+              })
+              })()}
               {actionStatus && (
                 <div className="action-chat-bubble">
                   <div className="action-bubble-header">
