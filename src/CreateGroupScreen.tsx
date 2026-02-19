@@ -131,17 +131,27 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
       const result = await createGroup(groupName.trim(), unique, iconFile, settings)
       setCreatedGroupInfo(result)
 
-      setCreatingStatus('Confirming group was created...')
       const groupId = result.groupId || result.id
+      if (!groupId) {
+        setSuccess(true)
+        setCreating(false)
+        setCreatingStatus('Group created, but we couldn\'t get the group details. Head back to your chats to find it.')
+        return
+      }
+
+      setCreatingStatus('Confirming group was created...')
       let confirmed = false
-      for (let attempt = 0; attempt < 5; attempt++) {
+      const maxAttempts = 6
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
           await new Promise(r => setTimeout(r, 2000))
           await fetchChat(groupId)
           confirmed = true
           break
         } catch {
-          setCreatingStatus(`Waiting for group to appear... (attempt ${attempt + 2}/6)`)
+          if (attempt < maxAttempts) {
+            setCreatingStatus(`Waiting for group to appear... (attempt ${attempt + 1}/${maxAttempts})`)
+          }
         }
       }
 
@@ -328,7 +338,12 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
           )}
 
           {success && !createdGroupInfo && (
-            <div className="status success">Group created!</div>
+            <div className="group-created-confirmation">
+              <div className="status success">{creatingStatus || 'Group created!'}</div>
+              <button type="button" className="go-to-chats-btn" onClick={onBack}>
+                Back to Chats
+              </button>
+            </div>
           )}
 
           {!success && (
