@@ -144,6 +144,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [pollOptions, setPollOptions] = useState(['', ''])
   const [pollMultiSelect, setPollMultiSelect] = useState(false)
   const [sendingPoll, setSendingPoll] = useState(false)
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -181,6 +182,8 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               messageType: msg.data.messageType as string,
             },
           ])
+        } else if (!msg.data.isFromMe) {
+          setUnreadCounts(prev => ({ ...prev, [incomingChatId]: (prev[incomingChatId] || 0) + 1 }))
         }
       } else if (msg.type === 'chat_update' && msg.data) {
         setChats((prev) =>
@@ -319,6 +322,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     setLoadingMessages(true)
     setMsgError(null)
     setChatTasks([])
+    setUnreadCounts(prev => { const next = { ...prev }; delete next[chat.id]; return next })
 
     const isDirect = chat.type === 'direct' || chat.type === 'contact' || chat.id?.endsWith('@c.us')
     try {
@@ -732,7 +736,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
             onClick={() => setFilterUnread(true)}
           >
             Unread
-            {(() => { const count = chats.filter(c => (c.unreadCount || 0) > 0).length; return count > 0 ? ` (${count})` : '' })()}
+            {(() => { const count = Object.values(unreadCounts).filter(v => v > 0).length; return count > 0 ? ` (${count})` : '' })()}
           </button>
         </div>
 
@@ -766,7 +770,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
         <div className="chat-list">
           {chats
             .filter((chat) => {
-              if (filterUnread && !(chat.unreadCount && chat.unreadCount > 0)) return false
+              if (filterUnread && !(unreadCounts[chat.id] > 0)) return false
               if (!searchQuery.trim()) return true
               const q = searchQuery.toLowerCase()
               return displayName(chat).toLowerCase().includes(q) || chat.name?.toLowerCase().includes(q) || chat.lastMessage?.toLowerCase().includes(q)
@@ -797,8 +801,8 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                   {chat.lastMessage && (
                     <p className="chat-preview">{chat.lastMessage}</p>
                   )}
-                  {(chat.unreadCount ?? 0) > 0 && (
-                    <span className="unread-badge">{chat.unreadCount}</span>
+                  {(unreadCounts[chat.id] || 0) > 0 && (
+                    <span className="unread-badge">{unreadCounts[chat.id]}</span>
                   )}
                 </div>
               </div>
