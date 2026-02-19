@@ -3,10 +3,11 @@ import './App.css'
 import MessagingScreen from './MessagingScreen'
 import CreateGroupScreen from './CreateGroupScreen'
 import SettingsScreen from './SettingsScreen'
+import type { Participant } from './api'
 
 type Screen =
   | { name: 'messaging' }
-  | { name: 'createGroup' }
+  | { name: 'createGroup'; prefillParticipants?: Participant[]; sourceGroupName?: string }
   | { name: 'settings' }
 
 function App() {
@@ -16,7 +17,9 @@ function App() {
     <main className="app-shell">
       {screen.name === 'messaging' && (
         <MessagingScreen
-          onCreateGroup={() => setScreen({ name: 'createGroup' })}
+          onCreateGroup={(prefillParticipants?: Participant[], sourceGroupName?: string) =>
+            setScreen({ name: 'createGroup', prefillParticipants, sourceGroupName })
+          }
           onSettings={() => setScreen({ name: 'settings' })}
         />
       )}
@@ -24,6 +27,8 @@ function App() {
         <CreateGroupScreen
           onBack={() => setScreen({ name: 'messaging' })}
           onCreated={() => setScreen({ name: 'messaging' })}
+          prefillParticipants={screen.prefillParticipants}
+          sourceGroupName={screen.sourceGroupName}
         />
       )}
       {screen.name === 'settings' && (

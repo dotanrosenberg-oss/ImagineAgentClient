@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Chat, Message, HealthStatus } from './api'
+import type { Chat, Message, HealthStatus, Participant } from './api'
 import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, checkHealth, syncChats } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 import type { GroupAction } from './groupActions'
@@ -111,7 +111,7 @@ function ActionInvokeBar({ action, chatMessages, onClose, onExecuteAction }: {
 }
 
 interface Props {
-  onCreateGroup: () => void
+  onCreateGroup: (prefillParticipants?: Participant[], sourceGroupName?: string) => void
   onSettings: () => void
 }
 
@@ -547,7 +547,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                 <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" />
               </svg>
             </button>
-            <button className="icon-btn" onClick={onCreateGroup} title="Create group">
+            <button className="icon-btn" onClick={() => onCreateGroup()} title="Create group">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
@@ -702,6 +702,27 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                 <span className="chat-type-tag">{isDirectChat(selectedChat) ? 'Direct' : 'Group'}</span>
               </div>
               <div className="header-actions">
+                {isDirectChat(selectedChat) && (
+                  <button
+                    className="icon-btn"
+                    onClick={() => {
+                      const phone = selectedChat.id.replace(/@.*$/, '')
+                      const contactName = displayName(selectedChat)
+                      onCreateGroup(
+                        [{ id: selectedChat.id, name: contactName, phone, isAdmin: false, isSuperAdmin: false }],
+                        contactName
+                      )
+                    }}
+                    title="Create group with this contact"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="8.5" cy="7" r="4" />
+                      <line x1="20" y1="8" x2="20" y2="14" />
+                      <line x1="23" y1="11" x2="17" y2="11" />
+                    </svg>
+                  </button>
+                )}
                 <button
                   className="icon-btn"
                   onClick={() => openChat(selectedChat)}

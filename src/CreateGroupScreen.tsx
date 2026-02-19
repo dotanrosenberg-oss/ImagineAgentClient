@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { FormEvent } from 'react'
-import { createGroup } from './api'
-import type { Participant } from './api'
+import { createGroup, fetchChat } from './api'
+import type { Participant, GroupCreateResult } from './api'
 
 interface Props {
   onBack: () => void
@@ -18,8 +18,10 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
   const [manualParticipants, setManualParticipants] = useState('')
   const [selectedMembers, setSelectedMembers] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
+  const [creatingStatus, setCreatingStatus] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [createdGroupInfo, setCreatedGroupInfo] = useState<GroupCreateResult | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string>(DEFAULT_PHOTO)
   const [useDefaultPhoto, setUseDefaultPhoto] = useState(true)
@@ -110,6 +112,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
 
     setCreating(true)
     setError(null)
+    setCreatingStatus('Preparing group...')
     try {
       let iconFile: File | undefined
       if (photoFile) {
@@ -124,13 +127,31 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
         membersCanSendMessages: allowSendMessages,
         membersCanAddMembers: allowAddMembers,
       }
+      setCreatingStatus('Creating group on WhatsApp... This may take up to a minute.')
       const result = await createGroup(groupName.trim(), unique, iconFile, settings)
+      setCreatedGroupInfo(result)
+
+      setCreatingStatus('Confirming group was created...')
+      const groupId = result.groupId || result.id
+      let confirmed = false
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          await new Promise(r => setTimeout(r, 2000))
+          await fetchChat(groupId)
+          confirmed = true
+          break
+        } catch {
+          setCreatingStatus(`Waiting for group to appear... (attempt ${attempt + 2}/6)`)
+        }
+      }
+
       setSuccess(true)
-      setTimeout(() => onCreated(result.groupId || result.id), 1000)
+      setCreating(false)
+      setCreatingStatus(confirmed ? 'Group created and confirmed!' : 'Group created! It may take a moment to appear in your chat list.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create group')
-    } finally {
       setCreating(false)
+      setCreatingStatus('')
     }
   }
 
@@ -275,19 +296,54 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
           </div>
 
           {error && <div className="status error">{error}</div>}
-          {success && <div className="status success">Group created successfully!</div>}
 
-          <div className="actions">
-            <button
-              type="submit"
-              disabled={!groupName.trim() || (getSelectedCount() === 0 && !manualParticipants.trim()) || creating || success}
-            >
-              {creating ? 'Creating...' : `Create Group${getSelectedCount() > 0 ? ` (${getSelectedCount()} members)` : ''}`}
-            </button>
-            <button type="button" className="secondary" onClick={onBack} disabled={creating}>
-              Cancel
-            </button>
-          </div>
+          {creating && (
+            <div className="status creating">
+              <div className="creating-spinner" />
+              {creatingStatus}
+            </div>
+          )}
+
+          {success && createdGroupInfo && (
+            <div className="group-created-confirmation">
+              <div className="status success">{creatingStatus}</div>
+              <div className="created-group-details">
+                <div className="created-group-row">
+                  <span className="created-group-label">Group Name</span>
+                  <span className="created-group-value">{createdGroupInfo.groupName || groupName}</span>
+                </div>
+                <div className="created-group-row">
+                  <span className="created-group-label">Group ID</span>
+                  <span className="created-group-value created-group-id">{createdGroupInfo.groupId || createdGroupInfo.id}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="go-to-chats-btn"
+                onClick={() => onCreated(createdGroupInfo.groupId || createdGroupInfo.id)}
+              >
+                Go to Chats
+              </button>
+            </div>
+          )}
+
+          {success && !createdGroupInfo && (
+            <div className="status success">Group created!</div>
+          )}
+
+          {!success && (
+            <div className="actions">
+              <button
+                type="submit"
+                disabled={!groupName.trim() || (getSelectedCount() === 0 && !manualParticipants.trim()) || creating || success}
+              >
+                {creating ? 'Creating...' : `Create Group${getSelectedCount() > 0 ? ` (${getSelectedCount()} members)` : ''}`}
+              </button>
+              <button type="button" className="secondary" onClick={onBack} disabled={creating}>
+                Cancel
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>
