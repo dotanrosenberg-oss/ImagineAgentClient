@@ -236,8 +236,9 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     setSyncing(true)
     setChatError(null)
     try {
-      const data = await syncChats()
-      setChats(data)
+      await syncChats()
+      const freshChats = await fetchChats()
+      setChats(freshChats)
     } catch (err) {
       setChatError(err instanceof Error ? err.message : 'Sync failed. Please try again.')
     } finally {
