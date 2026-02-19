@@ -468,15 +468,17 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   }
 
   const displayName = (chat: Chat): string => {
-    if (chat.name && chat.name !== chat.id && !chat.name.endsWith('@c.us') && !chat.name.endsWith('@g.us') && !chat.name.endsWith('@lid') && !chat.name.endsWith('@newsletter')) {
-      return chat.name
-    }
+    const hasRealName = chat.name && chat.name !== chat.id && chat.name !== chat.id?.replace(/@.*$/, '')
+    if (hasRealName) return chat.name!
     const idBase = chat.id?.replace(/@.*$/, '') || ''
     if (chat.id?.endsWith('@c.us') || chat.id?.endsWith('@lid')) {
       return formatPhoneNumber(idBase)
     }
     if (chat.id?.endsWith('@newsletter')) {
       return 'Newsletter'
+    }
+    if (chat.id?.endsWith('@g.us')) {
+      return chat.name || 'Group'
     }
     return chat.name || chat.id || 'Unknown'
   }
