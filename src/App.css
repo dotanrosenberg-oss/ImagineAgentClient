@@ -424,6 +424,7 @@ button.secondary {
 }
 
 .chat-avatar {
+  position: relative;
   width: 44px;
   height: 44px;
   min-width: 44px;
@@ -434,7 +435,6 @@ button.secondary {
   justify-content: center;
   color: #7a8194;
   overflow: hidden;
-  position: relative;
 }
 
 .chat-avatar-img {
@@ -445,6 +445,7 @@ button.secondary {
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
+  z-index: 1;
 }
 
 .chat-avatar-fallback {

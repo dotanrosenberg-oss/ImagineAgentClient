@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Chat, Message, HealthStatus, Participant } from './api'
-import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, sendPoll, checkHealth, syncChats, friendlyErrorMessage } from './api'
+import { fetchChats, fetchMessages, fetchWhatsAppMessages, sendMessage, sendMessageWithAttachment, sendPoll, checkHealth, syncChats, fetchProfilePic, friendlyErrorMessage } from './api'
 import { connectWebSocket, disconnectWebSocket, onWSMessage } from './websocket'
 import type { GroupAction } from './groupActions'
 import { getActions, getChatActions } from './groupActions'
@@ -132,7 +132,6 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [filterUnread, setFilterUnread] = useState(false)
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState<string | null>(null)
-  const [loadedPics, setLoadedPics] = useState<Set<string>>(new Set())
   const [failedPics, setFailedPics] = useState<Set<string>>(new Set())
   const [actionStatus, setActionStatus] = useState<{ actionName: string; request: string; state: 'waiting' | 'done' | 'error'; answer?: string; timestamp: string } | null>(null)
   const [availableActions, setAvailableActions] = useState<GroupAction[]>([])
@@ -253,7 +252,15 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       setChats(data)
       setServerMissing(false)
       setFailedPics(new Set())
-      setLoadedPics(new Set())
+
+      const missingPics = data.filter(c => !c.profilePicUrl).slice(0, 20)
+      for (const chat of missingPics) {
+        fetchProfilePic(chat.id).then(result => {
+          if (result?.profilePicUrl) {
+            setChats(prev => prev.map(c => c.id === chat.id ? { ...c, profilePicUrl: result.profilePicUrl! } : c))
+          }
+        }).catch(() => {})
+      }
     } catch (err: any) {
       if (err?.endpointMissing) {
         setServerMissing(true)
@@ -629,16 +636,12 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const chatAvatar = (chat: Chat) => {
     const picUrl = proxyPicUrl(chat.profilePicUrl)
     const hasFailed = failedPics.has(chat.id)
-    const hasLoaded = loadedPics.has(chat.id)
 
     return (
       <>
         <span
           className="chat-avatar-initials"
-          style={{
-            background: getAvatarColor(chat.id),
-            display: (picUrl && hasLoaded) ? 'none' : 'flex',
-          }}
+          style={{ background: getAvatarColor(chat.id) }}
         >
           {getInitials(displayName(chat))}
         </span>
@@ -647,10 +650,6 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
             src={picUrl}
             alt=""
             className="chat-avatar-img"
-            style={{ display: hasLoaded ? 'block' : 'none' }}
-            onLoad={() => {
-              setLoadedPics(prev => new Set(prev).add(chat.id))
-            }}
             onError={() => {
               setFailedPics(prev => new Set(prev).add(chat.id))
             }}
