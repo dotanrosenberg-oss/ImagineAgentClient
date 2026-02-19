@@ -474,3 +474,8 @@ export async function setGroupImage(groupId: string, imageFile: File): Promise<{
 export async function checkNumber(phoneNumber: string): Promise<{ registered: boolean }> {
   return apiCall('api/diagnostics/check-number', 'POST', { phoneNumber }, 30000)
 }
+
+export async function getGroupInviteLink(groupId: string): Promise<{ inviteLink: string }> {
+  const encoded = encodeURIComponent(groupId)
+  return apiCall(`api/groups/${encoded}/invite`, 'GET', undefined, 15000)
+}
