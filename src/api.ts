@@ -41,11 +41,18 @@ export interface GroupCreateResult {
   id: string
 }
 
+function stringify(val: unknown): string {
+  if (val === null || val === undefined) return ''
+  if (typeof val === 'string') return val
+  try { return JSON.stringify(val) } catch { return String(val) }
+}
+
 function extractErrorMessage(parsed: Record<string, unknown>, status: number): string {
-  const detail = parsed.details || parsed.detail || ''
-  const msg = (parsed.message as string) || (parsed.error as string) || ''
-  if (detail) return `${msg} — ${detail}`
+  const detail = stringify(parsed.details || parsed.detail || parsed.errors || '')
+  const msg = stringify(parsed.message || parsed.error || '')
+  if (msg && detail) return `${msg} — ${detail}`
   if (msg) return msg
+  if (detail) return detail
   return `Server error (${status})`
 }
 
