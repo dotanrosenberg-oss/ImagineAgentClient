@@ -136,7 +136,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [actionStatus, setActionStatus] = useState<{ actionName: string; request: string; state: 'waiting' | 'done' | 'error'; answer?: string; timestamp: string } | null>(null)
   const [availableActions, setAvailableActions] = useState<GroupAction[]>([])
   const [selectedBarAction, setSelectedBarAction] = useState<GroupAction | null>(null)
-  const [chatTasks, setChatTasks] = useState<{ id: number; chatId: string; actionId: string; actionName: string; externalTaskId: string; title: string; status: string; requestSummary: string; response: string; createdAt: string; updatedAt: string; completedAt: string | null }[]>([])
+  const [chatTasks, setChatTasks] = useState<{ id: number; chatId: string; actionId: string; actionName: string; externalTaskId: string; title: string; status: string; requestSummary: string; response: string; responseData: unknown; createdAt: string; updatedAt: string; completedAt: string | null }[]>([])
   const [chatTasksLoading, setChatTasksLoading] = useState(false)
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
   const [showPollForm, setShowPollForm] = useState(false)
@@ -565,6 +565,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               status: taskStatus,
               requestSummary: requestSummary,
               response: responseText,
+              responseData: result,
             }),
           }).then(async () => {
             if (selectedChat) await loadChatTasks(selectedChat.id)
@@ -997,12 +998,51 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                                   <div className="task-detail-content">{task.requestSummary}</div>
                                 </div>
                               )}
-                              {task.response && (
-                                <div className="task-detail-section">
-                                  <span className="task-detail-label">Response</span>
-                                  <div className="task-detail-content">{task.response}</div>
-                                </div>
-                              )}
+                              {(() => {
+                                const rd = task.responseData as Record<string, unknown> | null
+                                const taskData = (rd?.task || rd) as Record<string, unknown> | null
+                                if (!taskData) {
+                                  return task.response ? (
+                                    <div className="task-detail-section">
+                                      <span className="task-detail-label">Response</span>
+                                      <div className="task-detail-content">{task.response}</div>
+                                    </div>
+                                  ) : null
+                                }
+                                const skipKeys = new Set(['id', 'createdAt', 'updatedAt', 'created_at', 'updated_at'])
+                                const fields = Object.entries(taskData).filter(([k, v]) => !skipKeys.has(k) && v != null && v !== '' && typeof v !== 'object')
+                                const files = (taskData.files || taskData.attachments) as Array<Record<string, unknown>> | undefined
+                                return (
+                                  <>
+                                    {fields.length > 0 && (
+                                      <div className="task-detail-section">
+                                        <span className="task-detail-label">Reply</span>
+                                        <div className="task-detail-fields">
+                                          {fields.map(([k, v]) => (
+                                            <div key={k} className="task-detail-field-row">
+                                              <span className="task-detail-field-key">{k.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())}</span>
+                                              <span className="task-detail-field-value">{String(v)}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {files && files.length > 0 && (
+                                      <div className="task-detail-section">
+                                        <span className="task-detail-label">Files</span>
+                                        <div className="task-detail-files">
+                                          {files.map((f, fi) => (
+                                            <a key={fi} className="task-detail-file-link" href={String(f.url || f.path || '')} target="_blank" rel="noreferrer">
+                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                              {String(f.name || f.filename || `File ${fi + 1}`)}
+                                            </a>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>
+                                )
+                              })()}
                               <div className="task-detail-section">
                                 <span className="task-detail-label">Task</span>
                                 <div className="task-detail-content">{task.title} #{task.externalTaskId}</div>

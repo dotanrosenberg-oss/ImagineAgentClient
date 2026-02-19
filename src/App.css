@@ -2263,6 +2263,50 @@ button.secondary {
   line-height: 1.45;
 }
 
+.task-detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.task-detail-field-row {
+  display: flex;
+  gap: 8px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.task-detail-field-key {
+  color: #64748b;
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.task-detail-field-value {
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.task-detail-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.task-detail-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: #2563eb;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.task-detail-file-link:hover {
+  text-decoration: underline;
+}
+
 .action-executing-spinner {
   width: 12px;
   height: 12px;
