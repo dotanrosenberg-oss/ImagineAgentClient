@@ -94,19 +94,34 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     if (prefillParticipants) {
       phoneNumbers = prefillParticipants
         .filter((p) => selectedMembers[p.phone])
-        .map((p) => p.phone)
+        .map((p) => {
+          let num = p.phone.replace(/@.*$/, '').replace(/[^+\d]/g, '')
+          if (!num.startsWith('+')) num = '+' + num
+          return num
+        })
     }
 
     const manualNumbers = manualParticipants
       .split(/[,\n]+/)
-      .map((p) => p.trim().replace(/[^+\d]/g, ''))
-      .filter((p) => p.length > 0)
+      .map((p) => {
+        let num = p.trim().replace(/[^+\d]/g, '')
+        if (!num) return ''
+        if (!num.startsWith('+')) num = '+' + num
+        return num
+      })
+      .filter((p) => p.length > 1)
 
     phoneNumbers = [...phoneNumbers, ...manualNumbers]
     const unique = [...new Set(phoneNumbers)]
 
     if (unique.length === 0) {
       setError('Please select or enter at least one participant')
+      return
+    }
+
+    const invalidNumbers = unique.filter(n => !n.startsWith('+') || n.length < 8)
+    if (invalidNumbers.length > 0) {
+      setError(`These numbers look invalid: ${invalidNumbers.join(', ')}. Numbers must start with + and include the country code (e.g. +16468774479).`)
       return
     }
 
