@@ -385,10 +385,10 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
           descriptionParts.push(`[${author}]: ${m.body}`)
         })
       }
-      descriptionParts.push(`\nChat: ${selectedChat?.name || ''} (${selectedChat?.id || ''})`)
+      descriptionParts.push(`\nChat: ${selectedChat ? displayName(selectedChat) : ''} (${selectedChat?.id || ''})`)
 
       const payload: Record<string, unknown> = {
-        title: `${action.name} - ${selectedChat?.name || 'Unknown'}`,
+        title: `${action.name} - ${selectedChat ? displayName(selectedChat) : 'Unknown'}`,
         projectId: action.projectId || 1,
         description: descriptionParts.join('\n'),
         status: 'todo',
@@ -453,9 +453,37 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     return avatarColors[Math.abs(hash) % avatarColors.length]
   }
 
+  const formatPhoneNumber = (raw: string): string => {
+    const digits = raw.replace(/\D/g, '')
+    if (digits.length === 11 && digits.startsWith('1')) {
+      return `+1 ${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`
+    }
+    if (digits.length === 12 && digits.startsWith('972')) {
+      return `+972 ${digits.slice(3, 5)}-${digits.slice(5, 8)}-${digits.slice(8)}`
+    }
+    if (digits.length >= 10) {
+      return `+${digits.slice(0, digits.length - 10)} ${digits.slice(-10, -7)}-${digits.slice(-7, -4)}-${digits.slice(-4)}`
+    }
+    return `+${digits}`
+  }
+
+  const displayName = (chat: Chat): string => {
+    if (chat.name && chat.name !== chat.id && !chat.name.endsWith('@c.us') && !chat.name.endsWith('@g.us') && !chat.name.endsWith('@lid') && !chat.name.endsWith('@newsletter')) {
+      return chat.name
+    }
+    const idBase = chat.id?.replace(/@.*$/, '') || ''
+    if (chat.id?.endsWith('@c.us') || chat.id?.endsWith('@lid')) {
+      return formatPhoneNumber(idBase)
+    }
+    if (chat.id?.endsWith('@newsletter')) {
+      return 'Newsletter'
+    }
+    return chat.name || chat.id || 'Unknown'
+  }
+
   const getInitials = (name: string | undefined) => {
     if (!name) return '?'
-    const clean = name.replace(/^&/, '').trim()
+    const clean = name.replace(/^[\+&]/, '').replace(/[-\s]+/g, ' ').trim()
     if (!clean) return '?'
     const parts = clean.split(/\s+/).filter(Boolean)
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
@@ -481,7 +509,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
             display: (picUrl && hasLoaded) ? 'none' : 'flex',
           }}
         >
-          {getInitials(chat.name)}
+          {getInitials(displayName(chat))}
         </span>
         {picUrl && !hasFailed && (
           <img
@@ -604,7 +632,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               if (filterUnread && !(chat.unreadCount && chat.unreadCount > 0)) return false
               if (!searchQuery.trim()) return true
               const q = searchQuery.toLowerCase()
-              return chat.name?.toLowerCase().includes(q) || chat.lastMessage?.toLowerCase().includes(q)
+              return displayName(chat).toLowerCase().includes(q) || chat.name?.toLowerCase().includes(q) || chat.lastMessage?.toLowerCase().includes(q)
             })
             .sort((a, b) => {
               if (!a.lastMessageTime && !b.lastMessageTime) return 0
@@ -623,7 +651,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               </div>
               <div className="chat-info">
                 <div className="chat-name-row">
-                  <span className="chat-name">{chat.name}</span>
+                  <span className="chat-name">{displayName(chat)}</span>
                   {chat.lastMessageTime && (
                     <span className="chat-time">{formatTime(chat.lastMessageTime)}</span>
                   )}
@@ -667,7 +695,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                 </svg>
               </button>
               <div className="header-chat-info">
-                <h3>{selectedChat.name}</h3>
+                <h3>{displayName(selectedChat)}</h3>
                 <span className="chat-type-tag">{isDirectChat(selectedChat) ? 'Direct' : 'Group'}</span>
               </div>
               <div className="header-actions">
