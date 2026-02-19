@@ -1009,9 +1009,18 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                                     </div>
                                   ) : null
                                 }
-                                const skipKeys = new Set(['id', 'createdAt', 'updatedAt', 'created_at', 'updated_at'])
-                                const fields = Object.entries(taskData).filter(([k, v]) => !skipKeys.has(k) && v != null && v !== '' && typeof v !== 'object')
-                                const files = (taskData.files || taskData.attachments) as Array<Record<string, unknown>> | undefined
+                                const skipKeys = new Set(['id', 'createdAt', 'updatedAt', 'created_at', 'updated_at', 'files', 'attachments', 'conversations', 'messages', 'comments'])
+                                const formatValue = (v: unknown): string => {
+                                  if (v == null || v === '') return ''
+                                  if (typeof v === 'object' && !Array.isArray(v)) {
+                                    const obj = v as Record<string, unknown>
+                                    return obj.name || obj.title || obj.label ? String(obj.name || obj.title || obj.label) : JSON.stringify(v)
+                                  }
+                                  if (Array.isArray(v)) return v.map(x => typeof x === 'object' && x ? String((x as Record<string, unknown>).name || (x as Record<string, unknown>).title || JSON.stringify(x)) : String(x)).join(', ')
+                                  return String(v)
+                                }
+                                const fields = Object.entries(taskData).filter(([k, v]) => !skipKeys.has(k) && v != null && v !== '' && formatValue(v) !== '')
+                                const attachments = (taskData.files || taskData.attachments) as Array<Record<string, unknown>> | undefined
                                 return (
                                   <>
                                     {fields.length > 0 && (
@@ -1021,22 +1030,31 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                                           {fields.map(([k, v]) => (
                                             <div key={k} className="task-detail-field-row">
                                               <span className="task-detail-field-key">{k.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())}</span>
-                                              <span className="task-detail-field-value">{String(v)}</span>
+                                              <span className="task-detail-field-value">{formatValue(v)}</span>
                                             </div>
                                           ))}
                                         </div>
                                       </div>
                                     )}
-                                    {files && files.length > 0 && (
+                                    {attachments && attachments.length > 0 && (
                                       <div className="task-detail-section">
-                                        <span className="task-detail-label">Files</span>
+                                        <span className="task-detail-label">Attachments</span>
                                         <div className="task-detail-files">
-                                          {files.map((f, fi) => (
-                                            <a key={fi} className="task-detail-file-link" href={String(f.url || f.path || '')} target="_blank" rel="noreferrer">
-                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                              {String(f.name || f.filename || `File ${fi + 1}`)}
-                                            </a>
-                                          ))}
+                                          {attachments.map((f, fi) => {
+                                            const fileUrl = String(f.url || f.downloadUrl || f.path || f.link || '')
+                                            const fileName = String(f.name || f.filename || f.originalName || `File ${fi + 1}`)
+                                            return fileUrl ? (
+                                              <a key={fi} className="task-detail-file-link" href={fileUrl} target="_blank" rel="noreferrer">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                                {fileName}
+                                              </a>
+                                            ) : (
+                                              <span key={fi} className="task-detail-file-name">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                                {fileName}
+                                              </span>
+                                            )
+                                          })}
                                         </div>
                                       </div>
                                     )}

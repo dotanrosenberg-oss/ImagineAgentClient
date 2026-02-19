@@ -207,10 +207,10 @@ app.post('/local-api/chat-tasks/:chatId/refresh', async (req, res) => {
           const isCompleted = newStatus === 'done' || newStatus === 'completed'
 
           await pool.query(
-            `UPDATE chat_tasks SET status = $1, title = $2, updated_at = NOW(),
-             completed_at = CASE WHEN $4::boolean THEN NOW() ELSE NULL END
+            `UPDATE chat_tasks SET status = $1, title = $2, response_data = $4, updated_at = NOW(),
+             completed_at = CASE WHEN $5::boolean THEN NOW() ELSE NULL END
              WHERE id = $3`,
-            [newStatus, taskData.title || task.title, task.id, isCompleted]
+            [newStatus, taskData.title || task.title, task.id, JSON.stringify(data), isCompleted]
           )
         }
       } catch {

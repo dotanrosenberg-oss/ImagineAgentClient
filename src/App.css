@@ -2307,6 +2307,14 @@ button.secondary {
   text-decoration: underline;
 }
 
+.task-detail-file-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: #475569;
+}
+
 .action-executing-spinner {
   width: 12px;
   height: 12px;
