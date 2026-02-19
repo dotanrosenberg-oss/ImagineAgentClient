@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { FormEvent } from 'react'
+import heic2any from 'heic2any'
 import { createGroup, setGroupImage, fetchChat, friendlyErrorMessage } from './api'
 import type { Participant, GroupCreateResult } from './api'
 
@@ -26,7 +27,15 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     })),
     [rawPrefill]
   )
-  const [groupName, setGroupName] = useState('')
+  const defaultGroupName = sourceGroupName ? `Imagine Travel - ${sourceGroupName}` : ''
+  const [groupName, setGroupName] = useState(defaultGroupName)
+  const [userEditedName, setUserEditedName] = useState(false)
+
+  useEffect(() => {
+    if (sourceGroupName && !userEditedName) {
+      setGroupName(`Imagine Travel - ${sourceGroupName}`)
+    }
+  }, [sourceGroupName, userEditedName])
   const [manualParticipants, setManualParticipants] = useState('')
   const [selectedMembers, setSelectedMembers] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
@@ -51,10 +60,46 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     }
   }, [prefillParticipants])
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const convertToJpg = async (file: File): Promise<File> => {
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name)
+    let sourceBlob: Blob = file
+
+    if (isHeic) {
+      const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 })
+      sourceBlob = Array.isArray(result) ? result[0] : result
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, '')
+
+    if (!isHeic) {
+      return new Promise((resolve) => {
+        const img = new window.Image()
+        const url = URL.createObjectURL(sourceBlob)
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width = img.width
+          canvas.height = img.height
+          const ctx = canvas.getContext('2d')
+          if (!ctx) { URL.revokeObjectURL(url); resolve(file); return }
+          ctx.drawImage(img, 0, 0)
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url)
+            if (!blob) { resolve(file); return }
+            resolve(new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' }))
+          }, 'image/jpeg', 0.9)
+        }
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+        img.src = url
+      })
+    }
+
+    return new File([sourceBlob], `${baseName}.jpg`, { type: 'image/jpeg' })
+  }
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      if (!file.type.startsWith('image/')) {
+      if (!file.type.startsWith('image/') && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
         setError('Please select an image file')
         return
       }
@@ -62,9 +107,19 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
         setError('Image must be smaller than 5MB')
         return
       }
-      setPhotoFile(file)
+      const needsConvert = !file.type || file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().match(/\.(heic|heif)$/)
+      let finalFile = file
+      if (needsConvert) {
+        try {
+          finalFile = await convertToJpg(file)
+        } catch {
+          setError('Could not convert this image. Please use a JPG or PNG file instead.')
+          return
+        }
+      }
+      setPhotoFile(finalFile)
       setUseDefaultPhoto(false)
-      const url = URL.createObjectURL(file)
+      const url = URL.createObjectURL(finalFile)
       setPhotoPreview(url)
     }
   }
@@ -97,9 +152,10 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     return Object.values(selectedMembers).filter(Boolean).length
   }
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!groupName.trim()) return
+  const handleSubmit = async (e?: FormEvent) => {
+    if (e) e.preventDefault()
+    const nameToUse = groupName.trim() || defaultGroupName
+    if (!nameToUse) return
 
     let phoneNumbers: string[] = []
 
@@ -137,7 +193,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
     setError(null)
     setCreatingStatus('Creating group on WhatsApp...')
     try {
-      const result = await createGroup(groupName.trim(), unique)
+      const result = await createGroup(nameToUse, unique)
       setCreatedGroupInfo(result)
 
       const groupId = result.groupId || result.id
@@ -208,9 +264,21 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
           <h2>Create Group</h2>
         </div>
 
-        {hasMembers && sourceGroupName && (
-          <div className="source-info">
-            Creating group with: <strong>{sourceGroupName}</strong>
+        {hasMembers && sourceGroupName && !success && !creating && (
+          <div className="express-create-section">
+            <div className="express-create-info">
+              <span className="express-label">Quick create:</span>
+              <strong>{defaultGroupName}</strong>
+              <span className="express-members">{getSelectedCount()} member{getSelectedCount() !== 1 ? 's' : ''}</span>
+            </div>
+            <button
+              type="button"
+              className="express-create-btn"
+              onClick={() => handleSubmit()}
+              disabled={getSelectedCount() === 0}
+            >
+              Create Now
+            </button>
           </div>
         )}
 
@@ -236,7 +304,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.heic,.heif"
               onChange={handlePhotoChange}
               style={{ display: 'none' }}
             />
@@ -248,8 +316,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
               type="text"
               placeholder="Enter group name"
               value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              required
+              onChange={(e) => { setGroupName(e.target.value); setUserEditedName(true) }}
               autoFocus
               disabled={creating || success}
             />
@@ -379,7 +446,7 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
             <div className="actions">
               <button
                 type="submit"
-                disabled={!groupName.trim() || (getSelectedCount() === 0 && !manualParticipants.trim()) || creating || success}
+                disabled={(!groupName.trim() && !defaultGroupName) || (getSelectedCount() === 0 && !manualParticipants.trim()) || creating || success}
               >
                 {creating ? 'Creating...' : `Create Group${getSelectedCount() > 0 ? ` (${getSelectedCount()} members)` : ''}`}
               </button>

@@ -986,6 +986,67 @@ button.secondary {
   color: #1a1f36;
 }
 
+.express-create-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f0f7ff;
+  border: 1px solid #bdd8f5;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.express-create-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.express-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.express-create-info strong {
+  font-size: 0.95rem;
+  color: #1a1f36;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.express-members {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.express-create-btn {
+  flex-shrink: 0;
+  padding: 8px 20px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.express-create-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.express-create-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .participant-preview {
   background: #f4f6fb;
   border-radius: 12px;

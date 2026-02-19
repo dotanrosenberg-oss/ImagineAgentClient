@@ -91,6 +91,12 @@ A React + TypeScript + Vite frontend client for ImagineAgent. Provides WhatsApp 
 - Response bubble stays visible until manually closed by the user
 
 ## Recent Changes
+- 2026-02-19: Added express group creation — "Create Now" button for one-click group creation with defaults when coming from a direct chat
+- 2026-02-19: Default group name auto-fills as "Imagine Travel - {contact name}" when creating from a direct chat
+- 2026-02-19: HEIC/HEIF image conversion — group photos are auto-converted to JPG using heic2any before upload
+- 2026-02-19: Improved error message handling — `friendlyErrorMessage()` translates all technical server errors (detached frames, protocol errors, connection issues, timeouts, stack traces) into conversational messages across all UI surfaces
+- 2026-02-19: Fixed message endpoints to use POST /api/messages/send and POST /api/messages/send-media
+- 2026-02-19: Split group creation into two steps — createGroup (JSON) + setGroupImage (FormData) as separate API calls
 - 2026-02-18: Added API response normalization for new server format — handles wrapped responses ({chats:[...]}, {messages:[...]}), field mapping (isGroup→type, lastMessageAt→lastMessageTime, sender→fromPhone), health endpoint fallback (/api/health → /api/status), and WebSocket exponential backoff
 - 2026-02-17: Redesigned actions UX — actions now appear as a chip bar at the top of every chat (group and direct), replacing the hidden "..." dropdown menu. Inline invoke panel with note + context selection
 - 2026-02-17: Actions can now be created without API endpoints — shown as disabled/greyed out in action bar, with yellow left border indicator in Settings
