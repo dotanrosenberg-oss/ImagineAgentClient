@@ -831,19 +831,20 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                   {chatTasks.length > 0 && (() => {
                     const activeTasks = chatTasks.filter(t => t.status !== 'done' && t.status !== 'completed' && t.status !== 'cancelled')
                     const completedTasks = chatTasks.filter(t => t.status === 'done' || t.status === 'completed')
-                    if (activeTasks.length > 0) {
-                      return <span className="task-badge task-badge-active">
-                        <span className="task-badge-dot active" />
-                        {activeTasks.length} task{activeTasks.length > 1 ? 's' : ''} in progress
-                      </span>
-                    }
-                    if (completedTasks.length > 0) {
-                      return <span className="task-badge task-badge-completed">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                        {completedTasks.length} task{completedTasks.length > 1 ? 's' : ''} completed
-                      </span>
-                    }
-                    return null
+                    return <>
+                      {activeTasks.length > 0 && (
+                        <span className="task-badge task-badge-active">
+                          <span className="task-badge-dot active" />
+                          {activeTasks.length} task{activeTasks.length > 1 ? 's' : ''} in progress
+                        </span>
+                      )}
+                      {completedTasks.length > 0 && (
+                        <span className="task-badge task-badge-completed">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                          {completedTasks.length} completed
+                        </span>
+                      )}
+                    </>
                   })()}
                   {chatTasksLoading && <span className="task-badge task-badge-loading">Checking tasks...</span>}
                 </div>
@@ -1051,6 +1052,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                         )}
                         <span className="task-compact-name">{task.actionName}</span>
+                        <span className="task-compact-id">#{task.externalTaskId}</span>
                         <span className={`task-compact-status-label ${isDone ? 'done' : isActive ? 'active' : ''}`}>
                           {isDone ? 'Completed' : isActive ? 'In Progress' : task.status}
                         </span>

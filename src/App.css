@@ -2171,6 +2171,14 @@ button.secondary {
   text-overflow: ellipsis;
 }
 
+.task-compact-id {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .task-compact-status-label {
   font-size: 0.68rem;
   padding: 2px 7px;
