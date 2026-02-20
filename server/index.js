@@ -20,6 +20,7 @@ async function initDb() {
       project_id INTEGER,
       model_provider TEXT,
       model_name TEXT,
+      param_schema TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -32,6 +33,9 @@ async function initDb() {
   `)
   await pool.query(`
     ALTER TABLE actions ADD COLUMN IF NOT EXISTS model_name TEXT
+  `)
+  await pool.query(`
+    ALTER TABLE actions ADD COLUMN IF NOT EXISTS param_schema TEXT
   `)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chat_tasks (
@@ -65,6 +69,7 @@ function rowToAction(row) {
     projectId: row.project_id,
     modelProvider: row.model_provider,
     modelName: row.model_name,
+    paramSchema: row.param_schema,
   }
 }
 
@@ -185,13 +190,13 @@ app.post('/local-api/actions/:type', async (req, res) => {
   if (type !== 'group' && type !== 'chat') {
     return res.status(400).json({ error: 'Type must be group or chat' })
   }
-  const { id, name, description, apiUrl, apiKey, apiDocUrl, projectId, modelProvider, modelName } = req.body
+  const { id, name, description, apiUrl, apiKey, apiDocUrl, projectId, modelProvider, modelName, paramSchema } = req.body
   if (!id || !name) {
     return res.status(400).json({ error: 'id and name are required' })
   }
   await pool.query(
-    `INSERT INTO actions (id, type, name, description, api_url, api_key, api_doc_url, project_id, model_provider, model_name)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `INSERT INTO actions (id, type, name, description, api_url, api_key, api_doc_url, project_id, model_provider, model_name, param_schema)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      ON CONFLICT (id) DO UPDATE SET
        name = EXCLUDED.name,
        description = EXCLUDED.description,
@@ -201,8 +206,9 @@ app.post('/local-api/actions/:type', async (req, res) => {
        project_id = EXCLUDED.project_id,
        model_provider = EXCLUDED.model_provider,
        model_name = EXCLUDED.model_name,
+       param_schema = EXCLUDED.param_schema,
        updated_at = NOW()`,
-    [id, type, name, description || '', apiUrl, apiKey || '', apiDocUrl || '', projectId || null, modelProvider || null, modelName || null]
+    [id, type, name, description || '', apiUrl, apiKey || '', apiDocUrl || '', projectId || null, modelProvider || null, modelName || null, paramSchema || null]
   )
   res.json({ ok: true })
 })

@@ -521,6 +521,10 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
           descriptionParts.push(`[${author}]: ${m.body}`)
         })
       }
+      if (action.paramSchema) {
+        descriptionParts.push('\n--- Parameter Schema ---')
+        descriptionParts.push(action.paramSchema)
+      }
       descriptionParts.push(`\nChat: ${selectedChat ? displayName(selectedChat) : ''} (${selectedChat?.id || ''})`)
       descriptionParts.push(`Timestamp: ${now.toISOString()}`)
 

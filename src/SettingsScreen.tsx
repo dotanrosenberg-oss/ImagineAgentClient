@@ -24,6 +24,7 @@ export default function SettingsScreen({ onBack }: Props) {
   const [formProjectId, setFormProjectId] = useState('')
   const [formModelProvider, setFormModelProvider] = useState('')
   const [formModelName, setFormModelName] = useState('')
+  const [formParamSchema, setFormParamSchema] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
 
   const [serverUrl, setServerUrl] = useState('')
@@ -47,6 +48,7 @@ export default function SettingsScreen({ onBack }: Props) {
     setFormProjectId('')
     setFormModelProvider('')
     setFormModelName('')
+    setFormParamSchema('')
     setShowApiKey(false)
     setEditing(null)
     setFormTarget(null)
@@ -67,6 +69,7 @@ export default function SettingsScreen({ onBack }: Props) {
     setFormProjectId(action.projectId ? String(action.projectId) : '')
     setFormModelProvider(action.modelProvider || '')
     setFormModelName(action.modelName || '')
+    setFormParamSchema(action.paramSchema || '')
     setShowApiKey(false)
     setEditing(action)
     setFormTarget(target)
@@ -85,6 +88,7 @@ export default function SettingsScreen({ onBack }: Props) {
       projectId: formProjectId.trim() ? parseInt(formProjectId.trim(), 10) : undefined,
       modelProvider: formModelProvider.trim() || undefined,
       modelName: formModelName.trim() || undefined,
+      paramSchema: formParamSchema.trim() || undefined,
     }
 
     if (formTarget === 'group') {
@@ -197,6 +201,17 @@ export default function SettingsScreen({ onBack }: Props) {
       </label>
 
       <label className="gap-label">
+        Parameter Schema (JSON)
+        <textarea
+          className="gap-textarea"
+          placeholder='[{"name":"customerName","type":"string","required":true}]'
+          value={formParamSchema}
+          onChange={(e) => setFormParamSchema(e.target.value)}
+          rows={4}
+        />
+      </label>
+
+      <label className="gap-label">
         API Key
         <div className="gap-api-key-row">
           <input
@@ -268,6 +283,9 @@ export default function SettingsScreen({ onBack }: Props) {
                   )}
                   {(action.modelProvider || action.modelName) && (
                     <span className="gap-action-desc">Model: {action.modelProvider || 'default'}{action.modelName ? ` / ${action.modelName}` : ''}</span>
+                  )}
+                  {action.paramSchema && (
+                    <span className="gap-action-desc">Params schema configured</span>
                   )}
                   <span className="gap-action-url">{action.apiUrl || 'No endpoint configured'}</span>
                 </div>

@@ -8,6 +8,7 @@ export interface GroupAction {
   projectId?: number
   modelProvider?: string
   modelName?: string
+  paramSchema?: string
 }
 
 export type ChatAction = GroupAction
