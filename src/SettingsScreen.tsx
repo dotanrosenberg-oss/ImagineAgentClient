@@ -78,6 +78,16 @@ export default function SettingsScreen({ onBack }: Props) {
   const handleSave = async () => {
     if (!formName.trim() || !formTarget) return
 
+    const schemaText = formParamSchema.trim()
+    if (schemaText) {
+      try {
+        JSON.parse(schemaText)
+      } catch {
+        window.alert('Parameter Schema must be valid JSON.')
+        return
+      }
+    }
+
     const action: GroupAction = {
       id: editing ? editing.id : generateId(),
       name: formName.trim(),
