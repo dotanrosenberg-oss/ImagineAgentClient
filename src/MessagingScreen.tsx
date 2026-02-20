@@ -596,7 +596,8 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     }
   }
 
-  const isConnected = health?.whatsapp?.status === 'ready' || health?.whatsapp?.status === 'connected'
+  const waStatusRaw = String(health?.whatsapp?.status || '').toLowerCase()
+  const isConnected = ['ready', 'connected', 'open', 'online'].includes(waStatusRaw)
   const statusColor = isConnected ? '#22c55e' : health ? '#f59e0b' : serverMissing ? '#8a90a0' : '#8a90a0'
   const nameInfo = [health?.whatsapp?.name, health?.whatsapp?.phoneNumber].filter(Boolean).join(' ')
   const statusText = health
@@ -812,10 +813,22 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               return displayName(chat).toLowerCase().includes(q) || chat.name?.toLowerCase().includes(q) || chat.lastMessage?.toLowerCase().includes(q)
             })
             .sort((a, b) => {
-              if (!a.lastMessageTime && !b.lastMessageTime) return 0
-              if (!a.lastMessageTime) return 1
-              if (!b.lastMessageTime) return -1
-              return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
+              const parseSortTime = (value: unknown): number => {
+                if (value == null) return 0
+                if (typeof value === 'number') {
+                  return value < 1e12 ? value * 1000 : value
+                }
+                const asNum = Number(value)
+                if (!Number.isNaN(asNum) && asNum > 0) {
+                  return asNum < 1e12 ? asNum * 1000 : asNum
+                }
+                const t = new Date(String(value)).getTime()
+                return Number.isNaN(t) ? 0 : t
+              }
+
+              const aTime = parseSortTime(a.lastMessageTime)
+              const bTime = parseSortTime(b.lastMessageTime)
+              return bTime - aTime
             })
             .map((chat) => (
             <button
