@@ -671,8 +671,28 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     )
   }
 
+  const totalUnreadMessages = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0)
+  const unreadGroups = chats.filter((c) => c.id?.endsWith('@g.us') && (unreadCounts[c.id] || 0) > 0).length
+  const pendingTasksCount = chatTasks.filter((t) => !['done', 'completed', 'cancelled'].includes(t.status)).length
+
   return (
-    <div className="messaging-layout">
+    <div className="messaging-screen-root">
+      <div className="dashboard-strip">
+        <div className="dashboard-card">
+          <span className="dashboard-label">Unread messages</span>
+          <strong>{totalUnreadMessages}</strong>
+        </div>
+        <div className="dashboard-card">
+          <span className="dashboard-label">Unread groups</span>
+          <strong>{unreadGroups}</strong>
+        </div>
+        <div className="dashboard-card">
+          <span className="dashboard-label">Pending tasks</span>
+          <strong>{pendingTasksCount}</strong>
+        </div>
+      </div>
+
+      <div className="messaging-layout">
       <div className={`chat-sidebar ${selectedChat ? 'hidden-mobile' : ''}`}>
         <div className="status-bar">
           <span className="status-dot" style={{ background: statusColor }} />
@@ -1362,6 +1382,49 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
           </>
         )}
       </div>
+
+      <aside className="copilot-panel">
+        <div className="copilot-header">
+          <h3>Context Copilot</h3>
+          <span>{selectedChat ? displayName(selectedChat) : 'Pick a chat'}</span>
+        </div>
+
+        <div className="copilot-section">
+          <p className="copilot-section-title">Quick actions</p>
+          <div className="copilot-actions-list">
+            {availableActions.length === 0 && <span className="copilot-empty">No actions configured</span>}
+            {availableActions.map((action) => {
+              const hasEndpoint = !!(action.apiUrl && action.apiUrl.trim())
+              return (
+                <button
+                  key={action.id}
+                  className={`copilot-action-btn ${selectedBarAction?.id === action.id ? 'active' : ''}`}
+                  disabled={!hasEndpoint}
+                  onClick={() => setSelectedBarAction(selectedBarAction?.id === action.id ? null : action)}
+                >
+                  {action.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="copilot-section">
+          <p className="copilot-section-title">Task updates</p>
+          <div className="copilot-task-list">
+            {chatTasksLoading && <span className="copilot-empty">Loading…</span>}
+            {!chatTasksLoading && chatTasks.length === 0 && <span className="copilot-empty">No linked tasks yet</span>}
+            {chatTasks.slice(-6).reverse().map((task) => (
+              <div key={task.id} className="copilot-task-item">
+                <strong>#{task.externalTaskId}</strong>
+                <span>{task.title || task.actionName}</span>
+                <em>{task.status}</em>
+              </div>
+            ))}
+          </div>
+        </div>
+      </aside>
+    </div>
     </div>
   )
 }

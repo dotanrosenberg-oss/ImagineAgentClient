@@ -7,6 +7,37 @@
   background: #f4f6fb;
 }
 
+.messaging-screen-root {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f7f9ff;
+  border-bottom: 1px solid #e4e8f4;
+}
+
+.dashboard-card {
+  background: white;
+  border: 1px solid #e5e8ef;
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.dashboard-label {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
 .card {
   width: 100%;
   max-width: 460px;
@@ -220,9 +251,100 @@ button.secondary {
 
 .messaging-layout {
   width: 100%;
-  height: 100vh;
+  height: calc(100vh - 64px);
   display: flex;
   background: white;
+}
+
+.copilot-panel {
+  width: 280px;
+  min-width: 280px;
+  border-left: 1px solid #e5e8ef;
+  background: #fbfcff;
+  display: flex;
+  flex-direction: column;
+}
+
+.copilot-header {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid #e5e8ef;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.copilot-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.copilot-header span {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.copilot-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid #edf0f7;
+}
+
+.copilot-section-title {
+  margin: 0 0 8px;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.copilot-actions-list,
+.copilot-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.copilot-action-btn {
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #243b7a;
+  font-size: 0.82rem;
+}
+
+.copilot-action-btn.active {
+  background: #1f6fff;
+  color: #fff;
+}
+
+.copilot-task-item {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #f1f4fa;
+}
+
+.copilot-task-item strong {
+  font-size: 0.75rem;
+  color: #334155;
+}
+
+.copilot-task-item span {
+  font-size: 0.82rem;
+  color: #111827;
+}
+
+.copilot-task-item em {
+  font-size: 0.72rem;
+  color: #6b7280;
+  font-style: normal;
+}
+
+.copilot-empty {
+  font-size: 0.8rem;
+  color: #8a90a0;
 }
 
 .status-bar {
@@ -2665,6 +2787,14 @@ button.secondary {
 }
 
 @media (max-width: 700px) {
+  .dashboard-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .messaging-layout {
+    height: calc(100vh - 150px);
+  }
+
   .chat-sidebar {
     width: 100%;
     min-width: 100%;
@@ -2680,6 +2810,10 @@ button.secondary {
 
   .message-panel {
     width: 100%;
+  }
+
+  .copilot-panel {
+    display: none;
   }
 
   .back-btn {
