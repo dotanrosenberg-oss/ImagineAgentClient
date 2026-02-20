@@ -1,4 +1,4 @@
-import { buildApiUrl, getServerConfig } from './serverConfig'
+import { getServerConfig } from './serverConfig'
 
 export interface Chat {
   id: string
@@ -164,19 +164,30 @@ async function apiCall<T>(
   const timer = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
-    const { apiKey } = getServerConfig()
-    const headers: Record<string, string> = {}
-    if (body) headers['Content-Type'] = 'application/json'
-    if (apiKey) headers['X-API-Key'] = apiKey
+    const { apiKey, serverUrl } = getServerConfig()
+    let response: Response
 
-    const opts: RequestInit = {
-      method,
-      headers: Object.keys(headers).length ? headers : undefined,
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      signal: controller.signal,
+    if (serverUrl) {
+      response = await fetch('/local-api/forward', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverUrl, apiKey, endpoint, method, body }),
+        signal: controller.signal,
+      })
+    } else {
+      const headers: Record<string, string> = {}
+      if (body) headers['Content-Type'] = 'application/json'
+      if (apiKey) headers['X-API-Key'] = apiKey
+
+      const opts: RequestInit = {
+        method,
+        headers: Object.keys(headers).length ? headers : undefined,
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        signal: controller.signal,
+      }
+
+      response = await fetch(`/${endpoint}`, opts)
     }
-
-    const response = await fetch(buildApiUrl(endpoint), opts)
 
     if (response.status === 401 || response.status === 403) {
       throw new Error('Unable to authenticate. The API key may be incorrect for this server.')
@@ -367,8 +378,9 @@ export async function sendMessageWithAttachment(
   const timer = setTimeout(() => controller.abort(), 120000)
 
   try {
-    const { apiKey } = getServerConfig()
-    const response = await fetch(buildApiUrl('api/messages/send-media'), {
+    const { apiKey, serverUrl } = getServerConfig()
+    const mediaUrl = serverUrl ? `${serverUrl}/api/messages/send-media` : '/api/messages/send-media'
+    const response = await fetch(mediaUrl, {
       method: 'POST',
       body: formData,
       headers: apiKey ? { 'X-API-Key': apiKey } : undefined,
@@ -470,8 +482,9 @@ export async function setGroupImage(groupId: string, imageFile: File): Promise<{
   const timer = setTimeout(() => controller.abort(), 30000)
 
   try {
-    const { apiKey } = getServerConfig()
-    const response = await fetch(buildApiUrl('api/groups/set-image'), {
+    const { apiKey, serverUrl } = getServerConfig()
+    const imageUrl = serverUrl ? `${serverUrl}/api/groups/set-image` : '/api/groups/set-image'
+    const response = await fetch(imageUrl, {
       method: 'POST',
       body: formData,
       headers: apiKey ? { 'X-API-Key': apiKey } : undefined,

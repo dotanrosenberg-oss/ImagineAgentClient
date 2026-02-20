@@ -58,6 +58,35 @@ function rowToAction(row) {
   }
 }
 
+app.post('/local-api/forward', async (req, res) => {
+  const { serverUrl, apiKey, endpoint, method = 'GET', body } = req.body || {}
+  if (!serverUrl || !endpoint) {
+    return res.status(400).json({ error: 'serverUrl and endpoint are required' })
+  }
+
+  try {
+    const base = String(serverUrl).trim().replace(/\/$/, '')
+    const path = String(endpoint).startsWith('/') ? String(endpoint) : `/${String(endpoint)}`
+    const url = `${base}${path}`
+    const headers = {}
+    if (apiKey) headers['X-API-Key'] = String(apiKey)
+    if (body !== undefined) headers['Content-Type'] = 'application/json'
+
+    const response = await fetch(url, {
+      method: String(method || 'GET').toUpperCase(),
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    })
+
+    const text = await response.text()
+    let parsed
+    try { parsed = text ? JSON.parse(text) : {} } catch { parsed = { message: text } }
+    return res.status(response.status).json(parsed)
+  } catch (err) {
+    return res.status(502).json({ error: err.message || 'Proxy forward failed' })
+  }
+})
+
 app.post('/local-api/actions/execute', async (req, res) => {
   const { actionId, payload } = req.body
   if (!actionId) {
