@@ -241,6 +241,40 @@ app.post('/local-api/chat-tasks/:chatId/refresh', async (req, res) => {
   }
 })
 
+app.get('/local-api/dashboard', async (_req, res) => {
+  try {
+    const actionResult = await pool.query(
+      `SELECT api_url, api_key FROM actions
+       WHERE api_url IS NOT NULL AND api_url <> ''
+       ORDER BY updated_at DESC NULLS LAST, created_at DESC
+       LIMIT 1`
+    )
+
+    if (actionResult.rows.length === 0) {
+      return res.json({ pendingTasks: null, source: null })
+    }
+
+    const { api_url: apiUrl, api_key: apiKey } = actionResult.rows[0]
+    const urlObj = new URL(apiUrl)
+    const endpoint = `${urlObj.origin}/api/bot/tasks`
+    const headers = {}
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
+
+    const response = await fetch(endpoint, { headers })
+    if (!response.ok) {
+      return res.json({ pendingTasks: null, source: urlObj.origin, error: `task_api_${response.status}` })
+    }
+
+    const data = await response.json()
+    const tasks = Array.isArray(data?.tasks) ? data.tasks : []
+    const pendingTasks = tasks.filter((t) => !['done', 'completed', 'cancelled'].includes(String(t?.status || '').toLowerCase())).length
+
+    res.json({ pendingTasks, source: urlObj.origin, totalTasks: tasks.length })
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to load dashboard summary' })
+  }
+})
+
 app.delete('/local-api/actions/:type/:id', async (req, res) => {
   const { type, id } = req.params
   await pool.query('DELETE FROM actions WHERE id = $1 AND type = $2', [id, type])

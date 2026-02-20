@@ -144,7 +144,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   const [pollOptions, setPollOptions] = useState(['', ''])
   const [pollMultiSelect, setPollMultiSelect] = useState(false)
   const [sendingPoll, setSendingPoll] = useState(false)
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+  const [pendingTasksSummary, setPendingTasksSummary] = useState<number | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedChatRef = useRef<Chat | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -156,6 +156,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
   useEffect(() => {
     loadHealth()
     loadChats()
+    loadDashboardSummary()
     connectWebSocket()
 
     const unsubscribe = onWSMessage((msg) => {
@@ -164,7 +165,12 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
         setChats((prev) =>
           prev.map((c) =>
             c.id === incomingChatId
-              ? { ...c, lastMessage: msg.data.body as string, lastMessageTime: msg.data.timestamp as string }
+              ? {
+                  ...c,
+                  lastMessage: msg.data.body as string,
+                  lastMessageTime: msg.data.timestamp as string,
+                  unreadCount: selectedChatRef.current?.id === incomingChatId || msg.data.isFromMe ? (c.unreadCount || 0) : ((c.unreadCount || 0) + 1),
+                }
               : c
           )
         )
@@ -182,8 +188,6 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
               messageType: msg.data.messageType as string,
             },
           ])
-        } else if (!msg.data.isFromMe) {
-          setUnreadCounts(prev => ({ ...prev, [incomingChatId]: (prev[incomingChatId] || 0) + 1 }))
         }
       } else if (msg.type === 'chat_update' && msg.data) {
         setChats((prev) =>
@@ -244,6 +248,17 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
       setHealth(data)
     } catch {
       /* silent */
+    }
+  }
+
+  const loadDashboardSummary = async () => {
+    try {
+      const res = await fetch('/local-api/dashboard')
+      if (!res.ok) return
+      const data = await res.json()
+      setPendingTasksSummary(typeof data.pendingTasks === 'number' ? data.pendingTasks : null)
+    } catch {
+      // silent
     }
   }
 
@@ -322,7 +337,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     setLoadingMessages(true)
     setMsgError(null)
     setChatTasks([])
-    setUnreadCounts(prev => { const next = { ...prev }; delete next[chat.id]; return next })
+    setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unreadCount: 0 } : c))
 
     const isDirect = chat.type === 'direct' || chat.type === 'contact' || chat.id?.endsWith('@c.us')
     try {
@@ -671,9 +686,9 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
     )
   }
 
-  const totalUnreadMessages = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0)
-  const unreadGroups = chats.filter((c) => c.id?.endsWith('@g.us') && (unreadCounts[c.id] || 0) > 0).length
-  const pendingTasksCount = chatTasks.filter((t) => !['done', 'completed', 'cancelled'].includes(t.status)).length
+  const totalUnreadMessages = chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
+  const unreadGroups = chats.filter((c) => c.id?.endsWith('@g.us') && (c.unreadCount || 0) > 0).length
+  const pendingTasksCount = pendingTasksSummary ?? chatTasks.filter((t) => !['done', 'completed', 'cancelled'].includes(t.status)).length
 
   return (
     <div className="messaging-screen-root">
@@ -757,7 +772,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
             onClick={() => setFilterUnread(true)}
           >
             Unread
-            {(() => { const count = Object.values(unreadCounts).filter(v => v > 0).length; return count > 0 ? ` (${count})` : '' })()}
+            {(() => { const count = chats.filter(c => (c.unreadCount || 0) > 0).length; return count > 0 ? ` (${count})` : '' })()}
           </button>
         </div>
 
@@ -791,7 +806,7 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
         <div className="chat-list">
           {chats
             .filter((chat) => {
-              if (filterUnread && !(unreadCounts[chat.id] > 0)) return false
+              if (filterUnread && !((chat.unreadCount || 0) > 0)) return false
               if (!searchQuery.trim()) return true
               const q = searchQuery.toLowerCase()
               return displayName(chat).toLowerCase().includes(q) || chat.name?.toLowerCase().includes(q) || chat.lastMessage?.toLowerCase().includes(q)
@@ -822,8 +837,8 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
                   {chat.lastMessage && (
                     <p className="chat-preview">{chat.lastMessage}</p>
                   )}
-                  {(unreadCounts[chat.id] || 0) > 0 && (
-                    <span className="unread-badge">{unreadCounts[chat.id]}</span>
+                  {(chat.unreadCount || 0) > 0 && (
+                    <span className="unread-badge">{chat.unreadCount}</span>
                   )}
                 </div>
               </div>
