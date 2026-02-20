@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { GroupAction, ChatAction } from './groupActions'
 import { getActions, saveAction, deleteAction, getChatActions, saveChatAction, deleteChatAction, generateId } from './groupActions'
+import { getServerConfig, saveServerConfig } from './serverConfig'
 
 interface Props {
   onBack: () => void
@@ -23,9 +24,16 @@ export default function SettingsScreen({ onBack }: Props) {
   const [formProjectId, setFormProjectId] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
 
+  const [serverUrl, setServerUrl] = useState('')
+  const [serverApiKey, setServerApiKey] = useState('')
+  const [serverSaved, setServerSaved] = useState<string | null>(null)
+
   useEffect(() => {
     getActions().then(setGroupActions)
     getChatActions().then(setChatActions)
+    const config = getServerConfig()
+    setServerUrl(config.serverUrl)
+    setServerApiKey(config.apiKey)
   }, [])
 
   const resetForm = () => {
@@ -90,6 +98,11 @@ export default function SettingsScreen({ onBack }: Props) {
       setChatActions(await getChatActions())
     }
     setConfirmDelete(null)
+  }
+
+  const handleSaveServer = () => {
+    saveServerConfig({ serverUrl: serverUrl.trim(), apiKey: serverApiKey.trim() })
+    setServerSaved('Saved. Reopen chats screen to reconnect with new server settings.')
   }
 
   const renderForm = () => (
@@ -294,6 +307,47 @@ export default function SettingsScreen({ onBack }: Props) {
           </button>
           <h2>Settings</h2>
         </div>
+
+        <div className="settings-section">
+          <div className="settings-section-header">
+            <h3>Server Connection</h3>
+            <p className="settings-section-hint">Set WhatsApp API server URL and key used by the client.</p>
+          </div>
+          <div className="settings-form" style={{ marginTop: 8 }}>
+            <label className="gap-label">
+              API Server URL
+              <input
+                type="url"
+                className="gap-input"
+                placeholder="https://your-wa-server.example.com"
+                value={serverUrl}
+                onChange={(e) => {
+                  setServerUrl(e.target.value)
+                  setServerSaved(null)
+                }}
+              />
+            </label>
+            <label className="gap-label">
+              API Key
+              <input
+                type="password"
+                className="gap-input"
+                placeholder="Paste server API key"
+                value={serverApiKey}
+                onChange={(e) => {
+                  setServerApiKey(e.target.value)
+                  setServerSaved(null)
+                }}
+              />
+            </label>
+            <div className="gap-form-actions">
+              <button className="gap-btn-primary" onClick={handleSaveServer}>Save Server Settings</button>
+            </div>
+            {serverSaved && <div className="status success">{serverSaved}</div>}
+          </div>
+        </div>
+
+        <div className="settings-divider" />
 
         <div className="settings-section">
           <div className="settings-section-header">

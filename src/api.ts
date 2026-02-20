@@ -1,3 +1,5 @@
+import { buildApiUrl, getServerConfig } from './serverConfig'
+
 export interface Chat {
   id: string
   name: string
@@ -162,14 +164,19 @@ async function apiCall<T>(
   const timer = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
+    const { apiKey } = getServerConfig()
+    const headers: Record<string, string> = {}
+    if (body) headers['Content-Type'] = 'application/json'
+    if (apiKey) headers['X-API-Key'] = apiKey
+
     const opts: RequestInit = {
       method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: Object.keys(headers).length ? headers : undefined,
       ...(body ? { body: JSON.stringify(body) } : {}),
       signal: controller.signal,
     }
 
-    const response = await fetch(`/${endpoint}`, opts)
+    const response = await fetch(buildApiUrl(endpoint), opts)
 
     if (response.status === 401 || response.status === 403) {
       throw new Error('Unable to authenticate. The API key may be incorrect for this server.')
@@ -360,9 +367,11 @@ export async function sendMessageWithAttachment(
   const timer = setTimeout(() => controller.abort(), 120000)
 
   try {
-    const response = await fetch('/api/messages/send-media', {
+    const { apiKey } = getServerConfig()
+    const response = await fetch(buildApiUrl('api/messages/send-media'), {
       method: 'POST',
       body: formData,
+      headers: apiKey ? { 'X-API-Key': apiKey } : undefined,
       signal: controller.signal,
     })
 
@@ -461,9 +470,11 @@ export async function setGroupImage(groupId: string, imageFile: File): Promise<{
   const timer = setTimeout(() => controller.abort(), 30000)
 
   try {
-    const response = await fetch('/api/groups/set-image', {
+    const { apiKey } = getServerConfig()
+    const response = await fetch(buildApiUrl('api/groups/set-image'), {
       method: 'POST',
       body: formData,
+      headers: apiKey ? { 'X-API-Key': apiKey } : undefined,
       signal: controller.signal,
     })
 

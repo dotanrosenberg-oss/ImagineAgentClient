@@ -1,3 +1,5 @@
+import { getServerConfig } from './serverConfig'
+
 export interface WSMessage {
   type: 'connected' | 'message' | 'message_edit' | 'message_delete' | 'chat_update' | 'chats_synced' | 'service_unavailable' | 'poll_vote' | 'wa_state'
   event?: string
@@ -18,8 +20,18 @@ export function connectWebSocket(): void {
     return
   }
 
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/ws`
+  const { serverUrl, apiKey } = getServerConfig()
+  let wsUrl: string
+
+  if (serverUrl) {
+    const http = new URL(serverUrl)
+    const protocol = http.protocol === 'https:' ? 'wss:' : 'ws:'
+    const tokenSuffix = apiKey ? `?apiKey=${encodeURIComponent(apiKey)}` : ''
+    wsUrl = `${protocol}//${http.host}/ws${tokenSuffix}`
+  } else {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    wsUrl = `${protocol}//${window.location.host}/ws`
+  }
 
   socket = new WebSocket(wsUrl)
 
