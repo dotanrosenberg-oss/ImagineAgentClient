@@ -3,7 +3,7 @@ import pg from 'pg'
 
 const { Pool } = pg
 const app = express()
-app.use(express.json())
+app.use(express.json({ limit: '15mb' }))
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
