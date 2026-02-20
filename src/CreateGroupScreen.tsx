@@ -297,13 +297,11 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
       }
 
       setCreatingStatus('Confirming group was created...')
-      let confirmed = false
       const maxAttempts = 6
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
           await new Promise(r => setTimeout(r, 2000))
           await fetchChat(groupId)
-          confirmed = true
           break
         } catch {
           if (attempt < maxAttempts) {

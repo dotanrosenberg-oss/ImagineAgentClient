@@ -22,6 +22,8 @@ export default function SettingsScreen({ onBack }: Props) {
   const [formApiKey, setFormApiKey] = useState('')
   const [formApiDocUrl, setFormApiDocUrl] = useState('')
   const [formProjectId, setFormProjectId] = useState('')
+  const [formModelProvider, setFormModelProvider] = useState('')
+  const [formModelName, setFormModelName] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
 
   const [serverUrl, setServerUrl] = useState('')
@@ -43,6 +45,8 @@ export default function SettingsScreen({ onBack }: Props) {
     setFormApiKey('')
     setFormApiDocUrl('')
     setFormProjectId('')
+    setFormModelProvider('')
+    setFormModelName('')
     setShowApiKey(false)
     setEditing(null)
     setFormTarget(null)
@@ -61,6 +65,8 @@ export default function SettingsScreen({ onBack }: Props) {
     setFormApiKey(action.apiKey)
     setFormApiDocUrl(action.apiDocUrl || '')
     setFormProjectId(action.projectId ? String(action.projectId) : '')
+    setFormModelProvider(action.modelProvider || '')
+    setFormModelName(action.modelName || '')
     setShowApiKey(false)
     setEditing(action)
     setFormTarget(target)
@@ -77,6 +83,8 @@ export default function SettingsScreen({ onBack }: Props) {
       apiKey: formApiKey.trim(),
       apiDocUrl: formApiDocUrl.trim(),
       projectId: formProjectId.trim() ? parseInt(formProjectId.trim(), 10) : undefined,
+      modelProvider: formModelProvider.trim() || undefined,
+      modelName: formModelName.trim() || undefined,
     }
 
     if (formTarget === 'group') {
@@ -164,6 +172,31 @@ export default function SettingsScreen({ onBack }: Props) {
       </label>
 
       <label className="gap-label">
+        Model Provider
+        <select
+          className="gap-input"
+          value={formModelProvider}
+          onChange={(e) => setFormModelProvider(e.target.value)}
+        >
+          <option value="">Default</option>
+          <option value="openai">OpenAI</option>
+          <option value="gemini">Gemini</option>
+          <option value="claude">Claude</option>
+        </select>
+      </label>
+
+      <label className="gap-label">
+        Model Name <span style={{ color: '#b0b8c9', fontWeight: 400, fontSize: '12px' }}>(optional)</span>
+        <input
+          type="text"
+          className="gap-input"
+          placeholder="e.g. gpt-5, gemini-2.0-flash, claude-sonnet-4"
+          value={formModelName}
+          onChange={(e) => setFormModelName(e.target.value)}
+        />
+      </label>
+
+      <label className="gap-label">
         API Key
         <div className="gap-api-key-row">
           <input
@@ -232,6 +265,9 @@ export default function SettingsScreen({ onBack }: Props) {
                   <span className="gap-action-name">{action.name}</span>
                   {action.description && (
                     <span className="gap-action-desc">{action.description}</span>
+                  )}
+                  {(action.modelProvider || action.modelName) && (
+                    <span className="gap-action-desc">Model: {action.modelProvider || 'default'}{action.modelName ? ` / ${action.modelName}` : ''}</span>
                   )}
                   <span className="gap-action-url">{action.apiUrl || 'No endpoint configured'}</span>
                 </div>

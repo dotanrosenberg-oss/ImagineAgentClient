@@ -18,12 +18,20 @@ async function initDb() {
       api_key TEXT NOT NULL DEFAULT '',
       api_doc_url TEXT NOT NULL DEFAULT '',
       project_id INTEGER,
+      model_provider TEXT,
+      model_name TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
   await pool.query(`
     ALTER TABLE actions ADD COLUMN IF NOT EXISTS project_id INTEGER
+  `)
+  await pool.query(`
+    ALTER TABLE actions ADD COLUMN IF NOT EXISTS model_provider TEXT
+  `)
+  await pool.query(`
+    ALTER TABLE actions ADD COLUMN IF NOT EXISTS model_name TEXT
   `)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chat_tasks (
@@ -55,6 +63,8 @@ function rowToAction(row) {
     apiKey: row.api_key,
     apiDocUrl: row.api_doc_url,
     projectId: row.project_id,
+    modelProvider: row.model_provider,
+    modelName: row.model_name,
   }
 }
 
@@ -175,13 +185,13 @@ app.post('/local-api/actions/:type', async (req, res) => {
   if (type !== 'group' && type !== 'chat') {
     return res.status(400).json({ error: 'Type must be group or chat' })
   }
-  const { id, name, description, apiUrl, apiKey, apiDocUrl, projectId } = req.body
+  const { id, name, description, apiUrl, apiKey, apiDocUrl, projectId, modelProvider, modelName } = req.body
   if (!id || !name) {
     return res.status(400).json({ error: 'id and name are required' })
   }
   await pool.query(
-    `INSERT INTO actions (id, type, name, description, api_url, api_key, api_doc_url, project_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO actions (id, type, name, description, api_url, api_key, api_doc_url, project_id, model_provider, model_name)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      ON CONFLICT (id) DO UPDATE SET
        name = EXCLUDED.name,
        description = EXCLUDED.description,
@@ -189,8 +199,10 @@ app.post('/local-api/actions/:type', async (req, res) => {
        api_key = EXCLUDED.api_key,
        api_doc_url = EXCLUDED.api_doc_url,
        project_id = EXCLUDED.project_id,
+       model_provider = EXCLUDED.model_provider,
+       model_name = EXCLUDED.model_name,
        updated_at = NOW()`,
-    [id, type, name, description || '', apiUrl, apiKey || '', apiDocUrl || '', projectId || null]
+    [id, type, name, description || '', apiUrl, apiKey || '', apiDocUrl || '', projectId || null, modelProvider || null, modelName || null]
   )
   res.json({ ok: true })
 })
