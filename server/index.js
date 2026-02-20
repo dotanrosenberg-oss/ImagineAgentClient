@@ -335,11 +335,18 @@ app.get('/local-api/image-proxy', async (req, res) => {
 })
 
 const PORT = 3001
-initDb().then(() => {
+
+function startServer() {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Actions API running on port ${PORT}`)
   })
-}).catch((err) => {
-  console.error('Failed to initialize database:', err)
-  process.exit(1)
-})
+}
+
+initDb()
+  .then(() => {
+    startServer()
+  })
+  .catch((err) => {
+    console.error('Failed to initialize database (continuing in degraded mode):', err)
+    startServer()
+  })
