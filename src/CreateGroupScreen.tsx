@@ -324,11 +324,21 @@ export default function CreateGroupScreen({ onBack, onCreated, prefillParticipan
       }
 
       if (iconFile && groupId) {
-        setCreatingStatus('Setting group photo...')
-        try {
-          await setGroupImage(groupId, iconFile)
-        } catch {
-          /* group photo is optional — don't fail the whole creation */
+        const maxPhotoAttempts = 4
+        for (let attempt = 1; attempt <= maxPhotoAttempts; attempt++) {
+          setCreatingStatus(
+            attempt === 1
+              ? 'Setting group photo...'
+              : `Retrying group photo... (${attempt}/${maxPhotoAttempts})`
+          )
+          try {
+            await setGroupImage(groupId, iconFile)
+            break
+          } catch {
+            if (attempt < maxPhotoAttempts) {
+              await new Promise(r => setTimeout(r, 1800))
+            }
+          }
         }
       }
 
