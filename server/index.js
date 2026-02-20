@@ -194,6 +194,13 @@ app.post('/local-api/actions/:type', async (req, res) => {
   if (!id || !name) {
     return res.status(400).json({ error: 'id and name are required' })
   }
+  if (paramSchema && String(paramSchema).trim()) {
+    try {
+      JSON.parse(String(paramSchema))
+    } catch {
+      return res.status(400).json({ error: 'paramSchema must be valid JSON' })
+    }
+  }
   await pool.query(
     `INSERT INTO actions (id, type, name, description, api_url, api_key, api_doc_url, project_id, model_provider, model_name, param_schema)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
