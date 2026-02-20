@@ -87,6 +87,41 @@ app.post('/local-api/forward', async (req, res) => {
   }
 })
 
+app.post('/local-api/groups/set-image', async (req, res) => {
+  const { serverUrl, apiKey, groupId, fileName, mimeType, bufferBase64 } = req.body || {}
+  if (!serverUrl || !groupId || !bufferBase64) {
+    return res.status(400).json({ error: 'serverUrl, groupId, bufferBase64 are required' })
+  }
+
+  try {
+    const base = String(serverUrl).trim().replace(/\/$/, '')
+    const url = `${base}/api/groups/set-image`
+
+    const form = new FormData()
+    form.append('groupId', String(groupId))
+
+    const bytes = Buffer.from(String(bufferBase64), 'base64')
+    const blob = new Blob([bytes], { type: mimeType || 'image/jpeg' })
+    form.append('image', blob, fileName || 'group.jpg')
+
+    const headers = {}
+    if (apiKey) headers['X-API-Key'] = String(apiKey)
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: form,
+    })
+
+    const text = await response.text()
+    let parsed
+    try { parsed = text ? JSON.parse(text) : {} } catch { parsed = { message: text } }
+    return res.status(response.status).json(parsed)
+  } catch (err) {
+    return res.status(502).json({ error: err.message || 'Group image proxy failed' })
+  }
+})
+
 app.post('/local-api/actions/execute', async (req, res) => {
   const { actionId, payload } = req.body
   if (!actionId) {

@@ -658,7 +658,8 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
 
   const proxyPicUrl = (url: string | undefined) => {
     if (!url) return undefined
-    return `/local-api/image-proxy?url=${encodeURIComponent(url)}`
+    // Prefer direct URL first to preserve source-host auth/query semantics.
+    return url
   }
 
   const chatAvatar = (chat: Chat) => {
@@ -678,7 +679,14 @@ export default function MessagingScreen({ onCreateGroup, onSettings }: Props) {
             src={picUrl}
             alt=""
             className="chat-avatar-img"
-            onError={() => {
+            onError={(e) => {
+              const img = e.currentTarget
+              const usedFallback = img.dataset.fallbackTried === '1'
+              if (!usedFallback) {
+                img.dataset.fallbackTried = '1'
+                img.src = `/local-api/image-proxy?url=${encodeURIComponent(picUrl)}`
+                return
+              }
               setFailedPics(prev => new Set(prev).add(chat.id))
             }}
           />

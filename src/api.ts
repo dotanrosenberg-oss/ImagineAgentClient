@@ -474,22 +474,46 @@ export async function createGroup(
 }
 
 export async function setGroupImage(groupId: string, imageFile: File): Promise<{ success: boolean; groupId: string }> {
-  const formData = new FormData()
-  formData.append('groupId', groupId)
-  formData.append('image', imageFile)
-
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 30000)
 
   try {
     const { apiKey, serverUrl } = getServerConfig()
-    const imageUrl = serverUrl ? `${serverUrl}/api/groups/set-image` : '/api/groups/set-image'
-    const response = await fetch(imageUrl, {
-      method: 'POST',
-      body: formData,
-      headers: apiKey ? { 'X-API-Key': apiKey } : undefined,
-      signal: controller.signal,
-    })
+
+    let response: Response
+    if (serverUrl) {
+      const bytes = new Uint8Array(await imageFile.arrayBuffer())
+      let binary = ''
+      const chunkSize = 0x8000
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+      }
+      const bufferBase64 = btoa(binary)
+
+      response = await fetch('/local-api/groups/set-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serverUrl,
+          apiKey,
+          groupId,
+          fileName: imageFile.name || 'group.jpg',
+          mimeType: imageFile.type || 'image/jpeg',
+          bufferBase64,
+        }),
+        signal: controller.signal,
+      })
+    } else {
+      const formData = new FormData()
+      formData.append('groupId', groupId)
+      formData.append('image', imageFile)
+      response = await fetch('/api/groups/set-image', {
+        method: 'POST',
+        body: formData,
+        headers: apiKey ? { 'X-API-Key': apiKey } : undefined,
+        signal: controller.signal,
+      })
+    }
 
     if (!response.ok) {
       const text = await response.text()
